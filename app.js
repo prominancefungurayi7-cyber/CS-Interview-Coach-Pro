@@ -15,6 +15,8 @@ import { codingQuestions } from "./data/coding.js";
 import { companyQuestions } from "./data/companyQuestions.js";
 import { systemDesignQuestions } from "./data/systemDesign.js";
 import { projectQuestions } from "./data/projects.js";
+import { createCoachProfile, updateCoachProfile, effectivePace, nextDifficulty, weakestCategory } from "./coachProfile.js";
+import { composeSpeechTranscript } from "./speechTranscript.js";
 
 const CATEGORY_LABELS = {
     dsa: "Data Structures & Algorithms",
@@ -99,6 +101,10 @@ let mockState = null;
 let mockTimerInterval = null;
 let speechRecognition = null;
 let activeSpeechTarget = null;
+let activeSpeechStatus = null;
+let speechBaseValue = "";
+let speechStopping = false;
+let speechErrorMessage = "";
 
 // Chart instances
 let categoryChart = null;
@@ -191,6 +197,11 @@ function updateThemeUI() {
 }
 
 function navigateTo(pageId) {
+    if (activeSpeechTarget && !speechStopping) {
+        speechRecognition.stop();
+        speechStopping = true;
+    }
+    if (pageId !== "aiCoach") stopCoachCall();
     navButtons.forEach(btn => {
         btn.classList.toggle("active", btn.dataset.page === pageId);
         btn.setAttribute("aria-current", btn.dataset.page === pageId ? "page" : "false");
@@ -291,6 +302,254 @@ function getFilteredQuestions(category, difficulty = "all") {
     }
 
     return pool;
+}
+
+// AI coach: recent performance changes the coaching pace and question difficulty.
+let coachProfile;
+try { coachProfile = { ...createCoachProfile(), ...JSON.parse(localStorage.getItem("csCoachProfile")) }; }
+catch { coachProfile = createCoachProfile(); }
+let coachCall = null;
+let coachQuestion = null;
+let coachUsedHint = false;
+let coachStartedAt = 0;
+let coachBusy = false;
+let coachLastGraded = "";
+const coachSeen = new Set();
+
+function coachStatus(message) {
+    $("coachStatus").textContent = message;
+    $("coachBillingLink").classList.toggle("hidden", !message.includes("API credits are exhausted"));
+}
+
+function coachLine(speaker, message) {
+    const row = document.createElement("p");
+    const label = document.createElement("strong");
+    label.textContent = `${speaker}: `;
+    row.append(label, document.createTextNode(message));
+    $("coachTranscript").appendChild(row);
+    $("coachTranscript").scrollTop = $("coachTranscript").scrollHeight;
+}
+
+function showCoachProfile() {
+    const pace = effectivePace(coachProfile);
+    const names = { slow: "Step by step", medium: "Balanced", fast: "Challenge" };
+    const weak = weakestCategory(coachProfile, Object.keys(CATEGORY_LABELS));
+    $("coachProfileText").textContent = `${names[pace]} pace based on ${coachProfile.attempts.length} recent answers.${weak ? ` Focus topic: ${CATEGORY_LABELS[weak]}.` : " Your pace will adapt as you practice."}`;
+}
+
+function chooseCoachQuestion() {
+    const selected = $("coachCategory").value;
+    const category = selected === "recommended"
+        ? weakestCategory(coachProfile, Object.keys(CATEGORY_LABELS)) || "dsa"
+        : selected;
+    let pool = getFilteredQuestions(category, nextDifficulty(coachProfile));
+    if (!pool.length) pool = getFilteredQuestions(category);
+    const fresh = pool.filter(q => !coachSeen.has(q.question));
+    const candidates = fresh.length ? fresh : pool;
+    const question = candidates[Math.floor(Math.random() * candidates.length)];
+    if (question) coachSeen.add(question.question);
+    return question;
+}
+
+function stopCoachCall() {
+    if (!coachCall) return;
+    coachCall.channel?.close();
+    coachCall.pc?.close();
+    coachCall.stream?.getTracks().forEach(track => track.stop());
+    coachCall.audio?.remove();
+    coachCall = null;
+    $("coachStopBtn").disabled = true;
+    $("coachSendBtn").disabled = true;
+    coachStatus("Voice call ended. Your progress is saved in this browser.");
+}
+
+function coachEvent(event) {
+    if (!coachCall?.channel || coachCall.channel.readyState !== "open") return;
+    coachCall.channel.send(JSON.stringify(event));
+}
+
+function handleCoachEvent(event) {
+    if (event.type === "conversation.item.input_audio_transcription.completed" && event.transcript?.trim()) {
+        const words = event.transcript.trim();
+        coachLine("You", words);
+        $("coachAnswer").value = words;
+        if (/\b(hint|help me|explain|repeat|slower)\b/i.test(words)) coachUsedHint = true;
+        $("coachGradeBtn").disabled = words.length < 10;
+    }
+    if (event.type === "response.output_audio_transcript.done" && event.transcript?.trim()) {
+        coachLine("Coach", event.transcript.trim());
+    }
+    if (event.type === "error") coachStatus(event.error?.message || "Voice connection error.");
+}
+
+async function waitForCoachIce(pc) {
+    if (pc.iceGatheringState === "complete") return;
+    await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            pc.removeEventListener("icegatheringstatechange", onState);
+            reject(new Error("The voice connection timed out while preparing the microphone. Try again or check your network."));
+        }, 10000);
+        function onState() {
+            if (pc.iceGatheringState !== "complete") return;
+            clearTimeout(timer);
+            pc.removeEventListener("icegatheringstatechange", onState);
+            resolve();
+        }
+        pc.addEventListener("icegatheringstatechange", onState);
+        onState();
+    });
+}
+
+async function startCoach() {
+    if (coachBusy) return;
+    stopCoachCall();
+    coachQuestion = chooseCoachQuestion();
+    if (!coachQuestion) return coachStatus("No questions available for this topic.");
+    coachUsedHint = false;
+    coachStartedAt = Date.now();
+    coachLastGraded = "";
+    $("coachQuestion").textContent = coachQuestion.question;
+    $("coachDifficulty").textContent = coachQuestion.difficulty;
+    $("coachAnswer").value = "";
+    $("coachTranscript").replaceChildren();
+    $("coachFeedback").classList.add("hidden");
+    $("coachGradeBtn").disabled = false;
+    $("coachNextBtn").disabled = false;
+    coachBusy = true;
+    $("coachStartBtn").disabled = true;
+    coachStatus("Connecting to your interviewer…");
+    let pc, stream, audio;
+    try {
+        if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) throw new Error("This browser cannot open a voice call. Use a current browser on localhost or HTTPS.");
+        pc = new RTCPeerConnection();
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === "failed" && coachCall?.pc === pc) {
+                stopCoachCall();
+                coachStatus("Voice connection failed. Check your network and try again.");
+            }
+        };
+        audio = document.createElement("audio");
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+        pc.ontrack = event => { audio.srcObject = event.streams[0]; audio.play().catch(() => coachStatus("Click the page to allow audio playback.")); };
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        pc.addTrack(stream.getAudioTracks()[0], stream);
+        const channel = pc.createDataChannel("oai-events");
+        coachCall = { pc, stream, audio, channel };
+        channel.onmessage = message => { try { handleCoachEvent(JSON.parse(message.data)); } catch { /* Ignore malformed events. */ } };
+        channel.onerror = () => coachStatus("Voice data channel error. End the call and try again.");
+        channel.onopen = () => {
+            coachStatus("Live voice call. Speak naturally; the coach will reply aloud.");
+            $("coachStopBtn").disabled = false;
+            $("coachSendBtn").disabled = false;
+            coachEvent({ type: "response.create" });
+        };
+        channel.onclose = () => { if (coachCall?.channel === channel) stopCoachCall(); };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        coachStatus("Preparing secure voice connection…");
+        await waitForCoachIce(pc);
+        const sdp = pc.localDescription?.sdp;
+        if (!sdp) throw new Error("The browser could not prepare the voice connection.");
+        const params = new URLSearchParams({ category: coachQuestion.category, question: coachQuestion.question, pace: effectivePace(coachProfile) });
+        const response = await fetch(`/api/realtime-session?${params}`, { method: "POST", headers: { "Content-Type": "application/sdp" }, body: sdp });
+        if (!response.ok) {
+            const detail = await response.json().catch(() => ({}));
+            throw new Error(detail.error || "Could not connect to the voice service.");
+        }
+        await pc.setRemoteDescription({ type: "answer", sdp: await response.text() });
+    } catch (error) {
+        stream?.getTracks().forEach(track => track.stop());
+        pc?.close();
+        audio?.remove();
+        coachCall = null;
+        coachStatus(error.name === "NotAllowedError"
+            ? "Microphone access was denied. Allow microphone access in your browser, then try again."
+            : error.message);
+    } finally {
+        coachBusy = false;
+        $("coachStartBtn").disabled = false;
+    }
+}
+
+function sendCoachText() {
+    const text = $("coachAnswer").value.trim();
+    if (!text || !coachCall?.channel || coachCall.channel.readyState !== "open") return;
+    coachLine("You", text);
+    if (/\b(hint|help me|explain|repeat|slower)\b/i.test(text)) coachUsedHint = true;
+    coachEvent({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } });
+    coachEvent({ type: "response.create" });
+}
+
+async function gradeCoachAnswer() {
+    const answer = $("coachAnswer").value.trim();
+    if (!coachQuestion || answer.length < 10) return coachStatus("Give an answer of at least 10 characters first.");
+    if (answer === coachLastGraded || coachBusy) return;
+    coachBusy = true;
+    $("coachGradeBtn").disabled = true;
+    coachStatus("Reviewing your answer…");
+    try {
+        const response = await fetch("/api/evaluate", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: coachQuestion.category, question: coachQuestion.question, answer, pace: effectivePace(coachProfile), usedHint: coachUsedHint }) });
+        const feedback = await response.json();
+        if (!response.ok) throw new Error(feedback.error || "Could not grade your answer.");
+        coachLastGraded = answer;
+        const panel = $("coachFeedback");
+        panel.replaceChildren();
+        const heading = document.createElement("h3");
+        heading.textContent = `Score: ${feedback.score}%`;
+        panel.appendChild(heading);
+        for (const [label, value] of [["Assessment", feedback.summary], ["Strengths", feedback.strengths.join("; ")],
+            ["Improve", feedback.improvements.join("; ")], ["Your next step", feedback.nextStep], ["Follow-up", feedback.followUp]]) {
+            const row = document.createElement("p");
+            const strong = document.createElement("strong");
+            strong.textContent = `${label}: `;
+            row.append(strong, document.createTextNode(value));
+            panel.appendChild(row);
+        }
+        panel.classList.remove("hidden");
+        coachProfile = updateCoachProfile(coachProfile, { category: coachQuestion.category, score: feedback.score, usedHint: coachUsedHint, seconds: (Date.now() - coachStartedAt) / 1000 });
+        localStorage.setItem("csCoachProfile", JSON.stringify(coachProfile));
+        recordAnswer(coachQuestion, feedback.score, answer, "ai-coach");
+        updateSpacedRepetition(coachQuestion, feedback.score);
+        showCoachProfile();
+        coachStatus("Feedback ready. You can discuss it aloud or try the next question.");
+        if (coachCall?.channel?.readyState === "open") {
+            coachEvent({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: `Please speak a brief summary of this assessment and one next step: ${feedback.summary} ${feedback.nextStep}` }] } });
+            coachEvent({ type: "response.create" });
+        }
+    } catch (error) {
+        coachStatus(error.message);
+    } finally {
+        coachBusy = false;
+        $("coachGradeBtn").disabled = false;
+    }
+}
+
+function initCoach() {
+    const select = $("coachCategory");
+    select.add(new Option("Recommended focus topic", "recommended"));
+    for (const [value, label] of Object.entries(CATEGORY_LABELS)) select.add(new Option(label, value));
+    $("coachPace").value = coachProfile.preferredPace || "auto";
+    $("coachPace").addEventListener("change", () => {
+        coachProfile.preferredPace = $("coachPace").value;
+        localStorage.setItem("csCoachProfile", JSON.stringify(coachProfile));
+        showCoachProfile();
+    });
+    $("coachStartBtn").addEventListener("click", startCoach);
+    $("coachStopBtn").addEventListener("click", stopCoachCall);
+    $("coachSendBtn").addEventListener("click", sendCoachText);
+    $("coachGradeBtn").addEventListener("click", gradeCoachAnswer);
+    $("coachNextBtn").addEventListener("click", startCoach);
+    showCoachProfile();
+    fetch("/api/status").then(r => r.json()).then(data => {
+        $("coachStartBtn").disabled = !data.configured;
+        coachStatus(data.configured ? "API key loaded. Start an interview to check voice service availability."
+            : "AI coach is offline. Restart the app to refresh its connection.");
+    }).catch(() => {
+        $("coachStartBtn").disabled = true;
+        coachStatus("Start this app with node server.js to use the AI coach.");
+    });
 }
 
 function pickRandomQuestion(category, difficulty = "all") {
@@ -746,21 +1005,27 @@ function initSpeechRecognition() {
     recognition.lang = "en-US";
 
     recognition.onresult = (event) => {
-        let transcript = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-        }
-        if (activeSpeechTarget) {
-            activeSpeechTarget.value = (activeSpeechTarget.value + " " + transcript).trim();
-        }
+        if (!activeSpeechTarget) return;
+        // Each interim result is a revision of earlier words in this session.
+        // Rebuild from the session's results instead of appending every revision.
+        activeSpeechTarget.value = composeSpeechTranscript(speechBaseValue, event.results);
     };
 
-    recognition.onerror = () => {
-        $("speechStatus").textContent = "Speech recognition error";
+    recognition.onerror = (event) => {
+        speechErrorMessage = event.error === "not-allowed" || event.error === "service-not-allowed"
+            ? "Microphone access denied. Allow it in your browser and try again."
+            : event.error === "no-speech" ? "No speech detected. Try again."
+            : "Speech recognition error. Try again.";
+        if (activeSpeechStatus) activeSpeechStatus.textContent = speechErrorMessage;
+        else showToast(speechErrorMessage, "warning");
     };
 
     recognition.onend = () => {
-        $("speechStatus").textContent = "";
+        if (activeSpeechStatus) activeSpeechStatus.textContent = speechErrorMessage;
+        activeSpeechTarget = null;
+        activeSpeechStatus = null;
+        speechBaseValue = "";
+        speechStopping = false;
     };
 
     return recognition;
@@ -777,17 +1042,28 @@ function toggleSpeech(targetInput, statusEl) {
             return;
         }
 
-        if (activeSpeechTarget === targetInput) {
+        if (speechStopping) return;
+
+        if (activeSpeechTarget) {
             speechRecognition.stop();
-            activeSpeechTarget = null;
-            if (statusEl) statusEl.textContent = "";
-            showToast('Speech recognition stopped', 'info');
+            speechStopping = true;
+            if (activeSpeechStatus) activeSpeechStatus.textContent = "Finishing dictation...";
+            if (activeSpeechTarget !== targetInput) showToast("Dictation is stopping. Click again to use this field.", "info");
             return;
         }
 
         activeSpeechTarget = targetInput;
+        activeSpeechStatus = statusEl;
+        speechBaseValue = targetInput.value;
+        speechErrorMessage = "";
         if (statusEl) statusEl.textContent = "Listening...";
-        speechRecognition.start();
+        try { speechRecognition.start(); }
+        catch (error) {
+            activeSpeechTarget = null;
+            activeSpeechStatus = null;
+            if (statusEl) statusEl.textContent = "";
+            throw error;
+        }
         showToast('Speech recognition started', 'info');
     } catch (error) {
         handleError(error, 'toggling speech recognition');
@@ -1172,6 +1448,7 @@ function renderDifficultyChart() {
 function initCharts() {
     const textColor = currentTheme === 'dark' ? '#f1f5f9' : '#1e293b';
     const gridColor = currentTheme === 'dark' ? '#334155' : '#e2e8f0';
+    Chart.defaults.color = textColor;
 
     const categoryCtx = $('categoryChartCanvas');
     if (categoryCtx && Object.keys(stats.categoryStats).length > 0) {
@@ -1398,7 +1675,7 @@ function exportProgressToPdf() {
 
 function exportDataToJson() {
     try {
-        const dataStr = JSON.stringify(stats, null, 2);
+        const dataStr = JSON.stringify({ stats, coachProfile }, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
         const link = document.createElement('a');
@@ -1422,7 +1699,8 @@ function importDataFromJson(event) {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const importedData = JSON.parse(e.target.result);
+                const backup = JSON.parse(e.target.result);
+                const importedData = backup.stats || backup;
                 
                 // Validate the imported data structure
                 if (!importedData.practiced && importedData.practiced !== 0) {
@@ -1439,6 +1717,17 @@ function importDataFromJson(event) {
                 };
 
                 localStorage.setItem("csInterviewStats", JSON.stringify(stats));
+                if (backup.coachProfile && Array.isArray(backup.coachProfile.attempts)) {
+                    coachProfile = createCoachProfile();
+                    for (const attempt of backup.coachProfile.attempts.slice(-30)) {
+                        if (CATEGORY_LABELS[attempt.category]) coachProfile = updateCoachProfile(coachProfile, attempt);
+                    }
+                    coachProfile.preferredPace = ["auto", "slow", "medium", "fast"].includes(backup.coachProfile.preferredPace)
+                        ? backup.coachProfile.preferredPace : "auto";
+                    $("coachPace").value = coachProfile.preferredPace;
+                    localStorage.setItem("csCoachProfile", JSON.stringify(coachProfile));
+                    showCoachProfile();
+                }
                 updateDashboard();
                 renderProgress();
                 renderFavorites();
@@ -1484,6 +1773,10 @@ function clearAllData() {
         };
 
         localStorage.setItem("csInterviewStats", JSON.stringify(stats));
+        coachProfile = createCoachProfile();
+        localStorage.removeItem("csCoachProfile");
+        $("coachPace").value = "auto";
+        showCoachProfile();
         updateDashboard();
         renderProgress();
         renderFavorites();
@@ -1536,6 +1829,7 @@ $("bankRoleFilter").addEventListener("change", renderQuestionBank);
 $("bankSearch").addEventListener("input", renderQuestionBank);
 
 populateCategories();
+initCoach();
 updateDashboard();
 renderQuestionBank();
 renderCategoryPage("codingContainer", "coding");

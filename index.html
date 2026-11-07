@@ -27,6 +27,7 @@
         <nav role="navigation" aria-label="Main navigation">
             <button class="nav-btn active" data-page="dashboard" aria-current="page" role="menuitem">Dashboard</button>
             <button class="nav-btn" data-page="practice" role="menuitem">Practice</button>
+            <button class="nav-btn" data-page="aiCoach" role="menuitem">AI Voice Coach</button>
             <button class="nav-btn" data-page="mock" role="menuitem">Mock Interview</button>
             <button class="nav-btn" data-page="bank" role="menuitem">Question Bank</button>
             <button class="nav-btn" data-page="favorites" role="menuitem">⭐ Favorites</button>
@@ -103,6 +104,50 @@
                     <button id="quickRandomBtn" class="primary-btn">Random Interview (5 Q)</button>
                     <button id="quickMockBtn" class="secondary-btn">Start Mock Interview</button>
                     <button id="exportPdfBtn" class="outline-btn">Export Progress to PDF</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI VOICE COACH -->
+        <section id="aiCoach" class="page" role="region" aria-labelledby="aiCoachTitle">
+            <div class="page-header">
+                <h1 id="aiCoachTitle">AI Voice Coach</h1>
+                <p>Have a live spoken interview, get specific feedback, and build a learning plan that adapts with practice.</p>
+            </div>
+            <div class="two-col coach-layout">
+                <div class="card controls-panel">
+                    <h2>Set up your interview</h2>
+                    <label for="coachCategory">Topic</label>
+                    <select id="coachCategory"></select>
+                    <label for="coachPace">Coaching pace</label>
+                    <select id="coachPace">
+                        <option value="auto">Adapt automatically</option>
+                        <option value="slow">Step by step</option>
+                        <option value="medium">Balanced</option>
+                        <option value="fast">Challenge me</option>
+                    </select>
+                    <p class="coach-note" id="coachProfileText">Your pace will adapt after a few answers.</p>
+                    <p class="coach-note">The interviewer uses an AI-generated voice. Allow microphone access to speak. Headphones help prevent echo.</p>
+                    <div class="btn-group">
+                        <button id="coachStartBtn" class="primary-btn">Start voice interview</button>
+                        <button id="coachStopBtn" class="outline-btn" disabled>End voice call</button>
+                    </div>
+                    <p id="coachStatus" class="speech-status" role="status" aria-live="polite">Checking AI service…</p>
+                    <a id="coachBillingLink" class="hidden" href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener noreferrer">Manage OpenAI API billing</a>
+                </div>
+                <div class="card answer-panel">
+                    <div class="card-header-row"><h2>Your interview</h2><span id="coachDifficulty" class="badge badge-blue">Medium</span></div>
+                    <h3 id="coachQuestion">Choose a topic and start the interview.</h3>
+                    <p class="coach-note">Speak naturally. The interviewer can answer your questions, give a hint, and respond to your answer. You can also type below.</p>
+                    <div id="coachTranscript" class="coach-transcript" role="log" aria-live="polite"></div>
+                    <label for="coachAnswer">Your answer or follow-up</label>
+                    <textarea id="coachAnswer" rows="4" placeholder="Type an answer, or speak into your microphone..."></textarea>
+                    <div class="btn-group">
+                        <button id="coachSendBtn" class="secondary-btn" disabled>Send typed message</button>
+                        <button id="coachGradeBtn" class="primary-btn" disabled>Grade my answer</button>
+                        <button id="coachNextBtn" class="outline-btn" disabled>Next question</button>
+                    </div>
+                    <div id="coachFeedback" class="feedback-panel hidden" aria-live="polite"></div>
                 </div>
             </div>
         </section>
@@ -487,6 +532,6 @@
     </div>
 </div>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=20261108-voice-fix"></script>
 </body>
 </html>

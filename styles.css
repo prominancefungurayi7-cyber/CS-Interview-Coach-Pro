@@ -5,6 +5,7 @@
 }
 
 :root {
+    color-scheme: light;
     --blue: #2563eb;
     --blue-dark: #1d4ed8;
     --blue-light: #dbeafe;
@@ -29,6 +30,7 @@
 }
 
 [data-theme="dark"] {
+    color-scheme: dark;
     --blue: #3b82f6;
     --blue-dark: #2563eb;
     --blue-light: #1e3a5f;
@@ -61,6 +63,15 @@ body {
 body.no-scroll {
     overflow: hidden;
 }
+
+.coach-layout { align-items: start; }
+.coach-note { color: var(--text-light); font-size: 13px; line-height: 1.55; margin: 12px 0; }
+.coach-transcript { min-height: 140px; max-height: 300px; overflow-y: auto; padding: 16px;
+    margin: 16px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.coach-transcript p { margin: 0 0 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.coach-transcript p:last-child { margin-bottom: 0; }
+#coachFeedback { margin-top: 18px; }
+#coachFeedback p { margin-top: 10px; line-height: 1.55; }
 
 .app {
     display: flex;
@@ -634,7 +645,19 @@ input[type="search"] {
     font-family: inherit;
     font-size: 14px;
     background: var(--white);
+    color: var(--text);
     transition: var(--transition);
+}
+
+select option {
+    background: var(--white);
+    color: var(--text);
+}
+
+textarea::placeholder,
+input[type="search"]::placeholder {
+    color: var(--text-light);
+    opacity: 1;
 }
 
 select:hover,
@@ -727,11 +750,12 @@ textarea {
 }
 
 .outline-btn.danger:hover {
-    background: #fef2f2;
+    background: rgba(239, 68, 68, 0.12);
 }
 
 .icon-btn {
     background: var(--grey-bg);
+    color: var(--text);
     border: none;
     padding: 8px 14px;
     border-radius: 8px;
@@ -1135,6 +1159,7 @@ textarea {
 
 .favorite-btn {
     background: transparent;
+    color: var(--text);
     border: none;
     font-size: 18px;
     cursor: pointer;
