@@ -8,7 +8,7 @@ class MicrophoneCapture extends AudioWorkletProcessor {
         const channel = inputs[0]?.[0];
         if (channel) {
             this.samples.push(...channel);
-            if (this.samples.length >= 4096) {
+            if (this.samples.length >= 1024) {
                 this.port.postMessage(new Float32Array(this.samples));
                 this.samples = [];
             }

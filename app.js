@@ -1,6 +1,7 @@
 import { dsaQuestions } from "./data/dsa.js";
 import { oopQuestions } from "./data/oop.js";
 import { dipQuestions } from "./data/dip.js";
+import { studyGuides } from "./data/studyGuides.js";
 import { visualForQuestion, mountVisual } from "./visuals.js";
 import { dbmsQuestions } from "./data/dbms.js";
 import { osQuestions } from "./data/os.js";
@@ -96,11 +97,43 @@ function escapeHtml(value) {
 }
 
 function answerFor(question, level = selectedAnswerLevel) {
-    return question.answers?.[level] || question.modelAnswer;
+    if (question.answers?.[level]) return question.answers[level];
+    const guide = studyFor(question);
+    if (!guide) return question.modelAnswer;
+    if (level === "easy") return question.modelAnswer;
+    if (level === "hard") return `${guide.answer}\n\nAdvanced consideration: ${guide.complexExample}`;
+    return guide.answer;
+}
+
+function studyFor(question) {
+    return studyGuides[`${question.category}:${question.question}`];
+}
+
+function renderQuestionContext(question) {
+    const context = studyFor(question)?.context;
+    return context ? `<p class="question-context"><span>Think it through</span>${escapeHtml(context)}</p>` : "";
+}
+
+function setQuestionContext(elementId, question) {
+    const element = $(elementId);
+    const context = studyFor(question)?.context;
+    element.textContent = context ? `Think it through · ${context}` : "";
+    element.classList.toggle("hidden", !context);
+}
+
+function renderStudyExamples(question) {
+    const guide = studyFor(question);
+    if (!guide) return "";
+    return `<div class="worked-examples" aria-label="Worked examples">
+        <h5>See it in action</h5>
+        <div class="worked-example"><span>01 · Simple</span><p>${escapeHtml(guide.simpleExample)}</p></div>
+        <div class="worked-example"><span>02 · Practical</span><p>${escapeHtml(guide.mediumExample)}</p></div>
+        <div class="worked-example"><span>03 · Advanced</span><p>${escapeHtml(guide.complexExample)}</p></div>
+    </div>`;
 }
 
 function renderAnswer(question) {
-    const variants = question.answers ? `<div class="oop-answer-variants" data-category="${question.category}" data-question="${encodeURIComponent(question.question)}">
+    const variants = question.answers || studyFor(question) ? `<div class="oop-answer-variants" data-category="${question.category}" data-question="${encodeURIComponent(question.question)}">
         <label>Answer style
             <select class="oop-answer-level" aria-label="Model answer style">
                 <option value="easy" ${selectedAnswerLevel === "easy" ? "selected" : ""}>Easier</option>
@@ -109,7 +142,7 @@ function renderAnswer(question) {
             </select>
         </label>
     </div>` : "";
-    return `${variants}<p class="oop-answer-content">${escapeHtml(answerFor(question))}</p>`;
+    return `${variants}<p class="oop-answer-content">${escapeHtml(answerFor(question))}</p>${renderStudyExamples(question)}`;
 }
 
 function renderQuestionSource(question) {
@@ -305,6 +338,33 @@ function updateThemeUI() {
     }
 }
 
+const sidebarApp = document.querySelector(".app");
+const sidebar = $("appSidebar");
+const sidebarToggle = $("sidebarToggle");
+function setSidebarOpen(open, save = true) {
+    sidebarApp.classList.toggle("sidebar-collapsed", !open);
+    sidebar.inert = !open;
+    sidebar.setAttribute("aria-hidden", String(!open));
+    sidebarToggle.setAttribute("aria-expanded", String(open));
+    sidebarToggle.setAttribute("aria-label", open ? "Close sidebar" : "Open sidebar");
+    sidebarToggle.title = open ? "Close sidebar" : "Open sidebar";
+    $("sidebarBackdrop").tabIndex = open && matchMedia("(max-width: 1100px)").matches ? 0 : -1;
+    if (save) localStorage.setItem("csSidebarOpen", String(open));
+}
+
+function initSidebar() {
+    const saved = localStorage.getItem("csSidebarOpen");
+    setSidebarOpen(saved === null ? !matchMedia("(max-width: 1100px)").matches : saved === "true", false);
+    sidebarToggle.addEventListener("click", () => setSidebarOpen(sidebarApp.classList.contains("sidebar-collapsed")));
+    $("sidebarBackdrop").addEventListener("click", () => setSidebarOpen(false));
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && matchMedia("(max-width: 1100px)").matches && !sidebarApp.classList.contains("sidebar-collapsed")) {
+            setSidebarOpen(false);
+            sidebarToggle.focus();
+        }
+    });
+}
+
 function navigateTo(pageId) {
     if (activeSpeechTarget && !speechStopping) {
         speechRecognition.stop();
@@ -318,6 +378,7 @@ function navigateTo(pageId) {
     const activeNav = [...navButtons].find(btn => btn.dataset.page === pageId);
     if (activeNav) $("workspaceSectionName").textContent = activeNav.textContent.trim().replace(/^[^\w]+\s*/, "");
     pages.forEach(page => page.classList.toggle("active", page.id === pageId));
+    if (matchMedia("(max-width: 1100px)").matches) setSidebarOpen(false);
     
     // Focus management for accessibility
     const targetPage = $(pageId);
@@ -506,6 +567,7 @@ async function startCoach() {
     coachLastGraded = "";
     coachNotAcquaintedRecorded = false;
     $("coachQuestion").textContent = coachQuestion.question;
+    setQuestionContext("coachQuestionContext", coachQuestion);
     $("coachDifficulty").textContent = coachQuestion.difficulty;
     $("coachAnswer").value = "";
     $("coachTranscript").replaceChildren();
@@ -590,6 +652,10 @@ async function gradeCoachAnswer() {
             panel.appendChild(row);
         }
         panel.classList.remove("hidden");
+        const model = document.createElement("div");
+        model.className = "coach-study-answer";
+        model.innerHTML = `<h4>Model answer to study</h4><p class="oop-answer-content">${escapeHtml(answerFor(coachQuestion))}</p>${renderStudyExamples(coachQuestion)}${renderExplainControl(coachQuestion)}`;
+        panel.appendChild(model);
         coachProfile = updateCoachProfile(coachProfile, { category: coachQuestion.category, score: feedback.score, usedHint: coachUsedHint, seconds: (Date.now() - coachStartedAt) / 1000 });
         localStorage.setItem("csCoachProfile", JSON.stringify(coachProfile));
         recordAnswer(coachQuestion, feedback.score, answer, "ai-coach");
@@ -612,8 +678,8 @@ function markCoachNotAcquainted() {
     $("coachNotAcquaintedBtn").disabled = true;
     const question = coachQuestion;
     const panel = $("coachFeedback");
-    panel.innerHTML = `<h3>Not Acquainted</h3><p>Start with this model answer, then open the explanation for examples. This question is due for review.</p>
-        <p class="oop-answer-content">${escapeHtml(answerFor(question, "easy"))}</p>${renderExplainControl(question)}`;
+    panel.innerHTML = `<h3>Not Acquainted</h3><p>Start with this model answer and its examples. This question is due for review.</p>
+        <p class="oop-answer-content">${escapeHtml(answerFor(question, "easy"))}</p>${renderStudyExamples(question)}${renderExplainControl(question)}`;
     panel.classList.remove("hidden");
     recordAnswer(question, 0, "", "not-acquainted");
     scheduleNotAcquainted(question);
@@ -891,17 +957,19 @@ function showPracticeQuestion(question) {
     $("submitAnswerBtn").disabled = false;
     $("practiceNotAcquaintedBtn").disabled = false;
     $("questionTitle").textContent = question.question;
+    setQuestionContext("practiceQuestionContext", question);
     $("answerInput").value = "";
     $("feedbackPanel").classList.add("hidden");
     $("modelAnswerBox").classList.add("hidden");
-    $("practiceAnswerVariants").classList.toggle("hidden", !question.answers);
+    $("practiceExamples").replaceChildren();
+    $("practiceAnswerVariants").classList.toggle("hidden", !(question.answers || studyFor(question)));
     $("practiceAnswerVariants").dataset.category = question.category;
     $("practiceAnswerVariants").dataset.question = encodeURIComponent(question.question);
     $("practiceAnswerLevel").value = selectedAnswerLevel;
     const explainButton = $("practiceExplainBtn");
     explainButton.dataset.category = question.category;
     explainButton.dataset.question = encodeURIComponent(question.question);
-    explainButton.dataset.level = question.answers ? selectedAnswerLevel : "medium";
+    explainButton.dataset.level = selectedAnswerLevel;
     explainButton.setAttribute("aria-expanded", "false");
     explainButton.textContent = "Explain this answer";
     $("practiceExplanation").replaceChildren();
@@ -968,7 +1036,7 @@ async function submitAnswer() {
     try {
         const response = await fetch("/api/evaluate", { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ category: question.category, question: question.question, answer,
-                pace: effectivePace(coachProfile), level: question.answers ? selectedAnswerLevel : "medium" }) });
+                pace: effectivePace(coachProfile), level: selectedAnswerLevel }) });
         const feedback = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(feedback.error === "Not found" ? "Restart the app server to enable AI review." : feedback.error || "AI review is unavailable.");
         if (currentQuestion !== question || attempt.recorded) return;
@@ -989,6 +1057,7 @@ async function submitAnswer() {
         if (currentQuestion === question) {
             button.disabled = Boolean(attempt.recorded);
             $("modelAnswerText").textContent = answerFor(question);
+            $("practiceExamples").innerHTML = renderStudyExamples(question);
             $("modelAnswerBox").classList.remove("hidden");
         }
     }
@@ -1004,6 +1073,7 @@ function markPracticeNotAcquainted() {
     $("scoreValue").textContent = "0";
     $("feedbackText").textContent = "Not Acquainted recorded. Study the model answer and its examples, then revisit this question from Due for Review.";
     $("modelAnswerText").textContent = answerFor(currentQuestion);
+    $("practiceExamples").innerHTML = renderStudyExamples(currentQuestion);
     $("feedbackPanel").classList.remove("hidden");
     $("modelAnswerBox").classList.remove("hidden");
     recordAnswer(currentQuestion, 0, $("answerInput").value.trim(), "not-acquainted");
@@ -1020,6 +1090,7 @@ function showModelAnswer() {
             return;
         }
         $("modelAnswerText").textContent = answerFor(currentQuestion);
+        $("practiceExamples").innerHTML = renderStudyExamples(currentQuestion);
         $("modelAnswerBox").classList.remove("hidden");
         $("feedbackPanel").classList.remove("hidden");
     } catch (error) {
@@ -1029,7 +1100,7 @@ function showModelAnswer() {
 
 function renderExplainControl(question) {
     return `<div class="explain-control">
-        <button type="button" class="outline-btn explain-answer-btn" data-category="${question.category}" data-question="${encodeURIComponent(question.question)}" data-level="${question.answers ? selectedAnswerLevel : "medium"}" aria-expanded="false">Explain this answer</button>
+        <button type="button" class="outline-btn explain-answer-btn" data-category="${question.category}" data-question="${encodeURIComponent(question.question)}" data-level="${selectedAnswerLevel}" aria-expanded="false">Explain this answer</button>
         <div class="explanation-panel hidden" aria-live="polite"></div>
     </div>`;
 }
@@ -1067,6 +1138,9 @@ function renderExplanation(panel, explanation, question) {
 }
 
 function savedExplanation(question, level) {
+    const guide = studyFor(question);
+    if (guide) return { simpleTerms: question.answers?.[level] || guide.answer,
+        simpleExample: guide.simpleExample, mediumExample: guide.mediumExample, complexExample: guide.complexExample, offline: true };
     const easy = question.answers?.easy || question.modelAnswer;
     const medium = question.answers?.medium || question.modelAnswer;
     const hard = question.answers?.hard || question.modelAnswer;
@@ -1322,12 +1396,14 @@ function showMockQuestion() {
     const counter = `Question ${mockState.index + 1} of ${mockState.questions.length}`;
 
     $("mockQuestionText").textContent = q.question;
+    setQuestionContext("mockQuestionContext", q);
     $("mockCategoryBadge").textContent = q.categoryLabel;
     $("mockDifficultyBadge").textContent = q.difficulty;
     $("mockQuestionCounter").textContent = counter;
     $("mockAnswerInput").value = mockState.answers[mockState.index] || "";
 
     $("fsQuestionText").textContent = q.question;
+    setQuestionContext("fsQuestionContext", q);
     $("fsCategoryBadge").textContent = q.categoryLabel;
     $("fsQuestionCounter").textContent = counter;
     $("fsAnswerInput").value = mockState.answers[mockState.index] || "";
@@ -1426,6 +1502,7 @@ function renderMockResults() {
                 <span class="result-score">${review ? `${review.score}%` : mockState.unacquainted?.[i] ? "0% · Not Acquainted" : "Awaiting AI review"}</span>
             </div>
             <p><strong>Q:</strong> ${escapeHtml(q.question)}</p>
+            ${renderQuestionContext(q)}
             <p><strong>Your answer:</strong></p><p class="student-answer">${mockState.answers[i] ? escapeHtml(mockState.answers[i]) : mockState.unacquainted?.[i] ? "<em>Not Acquainted</em>" : "<em>Skipped</em>"}</p>
             ${review ? `<p><strong>AI review:</strong> ${escapeHtml(review.summary)}</p>
                 <p><strong>What you got right:</strong> ${escapeHtml(review.strengths.join("; ") || "No strengths identified yet.")}</p>
@@ -1433,7 +1510,8 @@ function renderMockResults() {
                 <p><strong>Suggested answer depth:</strong> ${level === "easy" ? "Easier" : level === "hard" ? "Advanced" : "Medium"}</p>` : ""}
             ${renderQuestionSource(q)}
             <details open><summary>Model answer to study</summary>
-                <p class="oop-answer-content">${escapeHtml(q.answers ? answerFor(q, level) : review?.studyAnswer || answerFor(q, level))}</p>
+                <p class="oop-answer-content">${escapeHtml(review?.studyAnswer || answerFor(q, level))}</p>
+                ${renderStudyExamples(q)}
                 ${q.answers ? `<p class="answer-depth-note">Select a different depth in the Question Bank if you want another explanation style.</p>` : ""}
                 ${renderExplainControl(q)}</details>
         </div>`;
@@ -1564,7 +1642,7 @@ function renderQuestionBank() {
     if (difficulty !== "all") filtered = filtered.filter(q => q.difficulty === difficulty);
     if (company !== "all") filtered = filtered.filter(q => q.company === company || !q.company);
     if (role !== "all") filtered = filtered.filter(q => q.role === role || !q.role);
-    if (search) filtered = filtered.filter(q => [q.question, q.topic, q.source].some(value => value?.toLowerCase().includes(search)));
+    if (search) filtered = filtered.filter(q => [q.question, q.topic, q.source, studyFor(q)?.context].some(value => value?.toLowerCase().includes(search)));
 
     container.innerHTML = filtered.length
         ? filtered.map(q => `
@@ -1576,6 +1654,7 @@ function renderQuestionBank() {
                     ${q.role ? `<span class="badge badge-grey">${q.role}</span>` : ''}
                 </div>
                 <p class="bank-question">${escapeHtml(q.question)}</p>
+                ${renderQuestionContext(q)}
                 ${renderQuestionSource(q)}
                 ${renderUnacquaintedControl(q)}
                 <details>
@@ -1598,6 +1677,7 @@ function renderCategoryPage(containerId, category) {
                 <button class="favorite-btn ${isFavorite(q) ? 'active' : ''}" data-question="${encodeURIComponent(q.question)}">⭐</button>
             </div>
             <p class="bank-question">${escapeHtml(q.question)}</p>
+            ${renderQuestionContext(q)}
             ${renderQuestionSource(q)}
             ${renderUnacquaintedControl(q)}
             <details>
@@ -1637,6 +1717,7 @@ function renderFavorites() {
                 <button class="favorite-btn active" data-question="${encodeURIComponent(q.question)}">⭐</button>
             </div>
             <p class="bank-question">${escapeHtml(q.question)}</p>
+            ${renderQuestionContext(q)}
             ${renderQuestionSource(q)}
             ${renderUnacquaintedControl(q)}
             <details>
@@ -1679,6 +1760,7 @@ function renderDueForReview() {
                 <span class="badge badge-grey">Interval: ${sr.interval} days</span>
             </div>
             <p class="bank-question">${escapeHtml(q.question)}</p>
+            ${renderQuestionContext(q)}
             ${renderQuestionSource(q)}
             ${renderUnacquaintedControl(q)}
             <details>
@@ -2129,6 +2211,7 @@ $("bankRoleFilter").addEventListener("change", renderQuestionBank);
 $("bankSearch").addEventListener("input", renderQuestionBank);
 
 initStudentProfile();
+initSidebar();
 populateCategories();
 restoreCompletedMock();
 initCoach();

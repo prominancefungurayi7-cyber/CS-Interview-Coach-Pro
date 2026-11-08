@@ -71,7 +71,8 @@ test("Gemini grading, explanation and voice token use bank answers", async () =>
             assert.doesNotMatch(JSON.stringify(voice.body), /test-only-key/);
             const tokenRequest = JSON.parse(outbound[2].options.body);
             assert.equal(tokenRequest.uses, 1);
-            assert.deepEqual(tokenRequest.liveConnectConstraints.config.responseModalities, ["AUDIO"]);
+            assert.equal(tokenRequest.liveConnectConstraints, undefined);
+            assert.ok(tokenRequest.expireTime);
             assert.equal((await post(origin, "/api/explain", { category: "oop", question: "invented" })).status, 400);
         });
     } finally {
@@ -95,6 +96,32 @@ test("Gemini quota errors are actionable and do not expose credentials", async (
                 assert.match(result.body.error, /quota or rate limit/);
                 assert.doesNotMatch(JSON.stringify(result.body), /test-only-key/);
             }
+        });
+    } finally {
+        globalThis.fetch = oldFetch;
+        if (oldKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = oldKey;
+    }
+});
+
+test("falls back to Flash-Lite when the primary text model is unavailable", async () => {
+    const oldKey = process.env.GEMINI_API_KEY;
+    const oldFetch = globalThis.fetch;
+    process.env.GEMINI_API_KEY = "test-only-key";
+    const models = [];
+    globalThis.fetch = async (url, options) => {
+        if (String(url).startsWith("http://127.0.0.1")) return oldFetch(url, options);
+        models.push(String(url));
+        return models.length === 1
+            ? new Response(JSON.stringify({ error: { status: "UNAVAILABLE" } }), { status: 503 })
+            : structured({ score: 90, summary: "Correct", strengths: ["Indexed access"], improvements: ["Add an example"], nextStep: "Draw a small array", followUp: "How are lists different?" });
+    };
+    try {
+        await withServer(async origin => {
+            const result = await post(origin, "/api/evaluate", { category: "dsa", question: "What is an array?", answer: "An array stores adjacent elements with indexed access." });
+            assert.equal(result.status, 200);
+            assert.equal(result.body.score, 90);
+            assert.match(models[0], /gemini-3\.5-flash:generateContent/);
+            assert.match(models[1], /gemini-3\.5-flash-lite:generateContent/);
         });
     } finally {
         globalThis.fetch = oldFetch;

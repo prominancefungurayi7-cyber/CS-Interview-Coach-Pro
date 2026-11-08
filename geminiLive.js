@@ -85,9 +85,13 @@ export async function createGeminiLiveCall(session, handlers = {}) {
                 systemInstruction: { parts: [{ text: session.instructions }] },
                 inputAudioTranscription: {}, outputAudioTranscription: {}
             } });
-            socket.onmessage = event => {
+            socket.onmessage = async event => {
                 let message;
-                try { message = JSON.parse(event.data); } catch { return; }
+                try {
+                    const raw = event.data instanceof Blob ? await event.data.text()
+                        : event.data instanceof ArrayBuffer ? new TextDecoder().decode(event.data) : event.data;
+                    message = JSON.parse(raw);
+                } catch { return; }
                 if (message.setupComplete) {
                     clearTimeout(timer);
                     ready = true;

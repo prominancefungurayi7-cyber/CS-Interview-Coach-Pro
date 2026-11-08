@@ -33,9 +33,19 @@ window.addEventListener('load', async () => {
     outcome.profileSaved = document.querySelector('#profileGate').classList.contains('hidden') &&
       document.querySelector('#dashboardWelcome').textContent.includes('Alex Test') &&
       document.querySelector('#progressStudent').textContent.includes('Example University');
+    const sidebarToggle = document.querySelector('#sidebarToggle');
+    if (document.querySelector('.app').classList.contains('sidebar-collapsed')) sidebarToggle.click();
+    outcome.sidebarOpened = sidebarToggle.getAttribute('aria-expanded') === 'true' && !document.querySelector('.app').classList.contains('sidebar-collapsed');
+    sidebarToggle.click();
+    outcome.sidebarClosed = sidebarToggle.getAttribute('aria-expanded') === 'false' && document.querySelector('.app').classList.contains('sidebar-collapsed');
+    sidebarToggle.click();
     document.querySelector('#heroBankBtn').click();
     outcome.heroBankNavigation = document.querySelector('#bank').classList.contains('active') &&
       document.querySelector('#workspaceSectionName').textContent === 'Question Bank';
+    const firstBankCard = document.querySelector('#questionBankContainer .bank-card');
+    firstBankCard.querySelector('details').open = true;
+    outcome.bankStudyExamples = firstBankCard.querySelectorAll('.worked-example').length === 3 &&
+      firstBankCard.querySelector('.question-context').textContent.includes('Think it through');
     document.querySelector('#workspaceStartBtn').click();
     outcome.workspacePractice = document.querySelector('#practice').classList.contains('active') &&
       document.querySelector('#questionTitle').textContent !== 'Select a category and start.';
@@ -80,7 +90,7 @@ window.addEventListener('load', async () => {
     await pause(300);
     outcome.practiceAiScore = document.querySelector('#scoreValue').textContent === '87';
     document.querySelector('[data-page="aiCoach"]').click();
-    Object.defineProperty(window, 'RTCPeerConnection', { value: undefined, configurable: true });
+    Object.defineProperty(window, 'AudioWorkletNode', { value: undefined, configurable: true });
     document.querySelector('#coachStartBtn').click();
     await pause(100);
     document.querySelector('#coachNotAcquaintedBtn').click();
@@ -122,6 +132,10 @@ const proxy = http.createServer(async (req, res) => {
         if (req.url === "/api/status") {
             res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"configured":true}'); return;
         }
+        if (req.url?.startsWith('/api/voice-token')) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end('{"token":"test-token","model":"gemini-3.8-live","voice":"Kore","instructions":"Ask a question"}'); return;
+        }
         if (req.url === "/api/evaluate") {
             for await (const _ of req) { /* drain */ }
             res.writeHead(200, { "Content-Type": "application/json" });
@@ -151,6 +165,7 @@ try {
     const result = await new Promise((resolve, reject) => {
         const child = spawn(chrome, ["--headless=new", "--no-sandbox", "--disable-gpu", "--disable-gpu-sandbox",
             "--disable-software-rasterizer", "--no-first-run", `--user-data-dir=${profile}`,
+            `--window-size=${process.env.SMOKE_VIEWPORT || '800,600'}`,
             "--virtual-time-budget=18000", "--dump-dom", url], { windowsHide: true });
         let output = "";
         child.stdout.on("data", data => output += data.toString());
