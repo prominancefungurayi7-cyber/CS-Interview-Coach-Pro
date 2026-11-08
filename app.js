@@ -22,6 +22,7 @@ import { createCoachProfile, updateCoachProfile, effectivePace, nextDifficulty, 
 import { composeSpeechTranscript } from "./speechTranscript.js";
 import { createGeminiLiveCall, mergeSpeech } from "./geminiLive.js";
 import { normalizeStudentProfile, progressFileName } from "./studentProfile.js";
+import { pickWeightedQuestion, sampleWeightedQuestions } from "./questionSelection.js";
 
 const CATEGORY_LABELS = {
     dsa: "Data Structures & Algorithms",
@@ -99,8 +100,12 @@ function escapeHtml(value) {
 }
 
 function answerFor(question, level = selectedAnswerLevel) {
-    if (question.answers?.[level]) return question.answers[level];
     const guide = studyFor(question);
+    if (question.answers?.[level]) {
+        const answer = question.answers[level];
+        return question.category === "oop" && question.pastPaper && level !== "easy" && guide?.answer
+            ? `${answer}\n\nWhy it works: ${guide.answer}` : answer;
+    }
     if (!guide) return question.modelAnswer;
     if (level === "easy") return question.modelAnswer;
     if (level === "hard") return `${guide.answer}\n\nAdvanced consideration: ${guide.complexExample}`;
@@ -527,7 +532,7 @@ function chooseCoachQuestion() {
     if (!pool.length) pool = getFilteredQuestions(category);
     const fresh = pool.filter(q => !coachSeen.has(q.question));
     const candidates = fresh.length ? fresh : pool;
-    const question = candidates[Math.floor(Math.random() * candidates.length)];
+    const question = pickWeightedQuestion(candidates);
     if (question) coachSeen.add(question.question);
     return question;
 }
@@ -664,7 +669,9 @@ async function gradeCoachAnswer() {
         updateSpacedRepetition(coachQuestion, feedback.score);
         showCoachProfile();
         coachStatus("Feedback ready. You can discuss it aloud or try the next question.");
-        if (coachCall?.isOpen) coachCall.sendText(`Please speak a brief summary of this assessment and one next step: ${feedback.summary} ${feedback.nextStep}`);
+        if (coachCall?.isOpen) coachCall.sendText(coachQuestion.category === "oop" && coachQuestion.pastPaper
+            ? `Please explain this Java OOP past-paper answer in clear steps. First say what I got right and what I missed, then walk through a concrete Java example and one common mistake. End with one practice step. Assessment: ${feedback.summary} ${feedback.improvements.join("; ")} ${feedback.nextStep}`
+            : `Please speak a brief summary of this assessment and one next step: ${feedback.summary} ${feedback.nextStep}`);
     } catch (error) {
         coachStatus(error.message);
     } finally {
@@ -681,7 +688,7 @@ function markCoachNotAcquainted() {
     const question = coachQuestion;
     const panel = $("coachFeedback");
     panel.innerHTML = `<h3>Not Acquainted</h3><p>Start with this model answer and its examples. This question is due for review.</p>
-        <p class="oop-answer-content">${escapeHtml(answerFor(question, "easy"))}</p>${renderStudyExamples(question)}${renderExplainControl(question)}`;
+        <p class="oop-answer-content">${escapeHtml(answerFor(question, question.category === "oop" && question.pastPaper ? "medium" : "easy"))}</p>${renderStudyExamples(question)}${renderExplainControl(question)}`;
     panel.classList.remove("hidden");
     recordAnswer(question, 0, "", "not-acquainted");
     scheduleNotAcquainted(question);
@@ -689,7 +696,9 @@ function markCoachNotAcquainted() {
     localStorage.setItem("csCoachProfile", JSON.stringify(coachProfile));
     showCoachProfile();
     coachStatus("Not Acquainted recorded. Study the answer, or ask the coach to explain it aloud.");
-    if (coachCall?.isOpen) coachCall.sendText("I am not acquainted with this topic yet. Please explain the answer aloud in simple terms with one concrete example and a short practice step.");
+    if (coachCall?.isOpen) coachCall.sendText(question.category === "oop" && question.pastPaper
+        ? "I am not acquainted with this Java OOP past-paper topic yet. Please explain it step by step, walk through a concrete Java example, point out a common mistake, and give me one short practice task."
+        : "I am not acquainted with this topic yet. Please explain the answer aloud in simple terms with one concrete example and a short practice step.");
 }
 
 function initCoach() {
@@ -712,8 +721,7 @@ function initCoach() {
     showCoachProfile();
     fetch("/api/status").then(r => r.json()).then(data => {
         $("coachStartBtn").disabled = !data.configured;
-        coachStatus(data.configured ? "API key loaded. Start an interview to check voice service availability."
-            : "AI coach is offline. Restart the app to refresh its connection.");
+        coachStatus(data.configured ? "" : "AI coach is offline. Restart the app to refresh its connection.");
     }).catch(() => {
         $("coachStartBtn").disabled = true;
         if (location.hostname.endsWith("github.io")) {
@@ -732,7 +740,7 @@ function initCoach() {
 function pickRandomQuestion(category, difficulty = "all") {
     const pool = getFilteredQuestions(category, difficulty);
     if (!pool.length) return null;
-    return pool[Math.floor(Math.random() * pool.length)];
+    return pickWeightedQuestion(pool);
 }
 
 function generateRandomInterview(count = 5, difficulty = "all", categories = null) {
@@ -746,8 +754,7 @@ function generateRandomInterview(count = 5, difficulty = "all", categories = nul
         pool = pool.filter(q => q.difficulty === difficulty);
     }
 
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(count, shuffled.length));
+    return sampleWeightedQuestions(pool, Math.min(count, pool.length));
 }
 
 function toggleFavorite(question) {

@@ -2,6 +2,8 @@
 
 The Java OOP bank contains 86 original revision prompts across the module's six units. Each prompt has three authored answer styles, a concrete example, an explicit question difficulty, topic, unit, and expected terms for local practice feedback. The same bank feeds Question Bank, Practice, AI Voice Coach, mock interviews, favorites, and spaced review. The answer style changes explanation depth; question difficulty is a separate filter.
 
+Past-paper-linked questions receive four times the selection weight in Practice, Voice Coach and Mock Interview. The available difficulty filter is applied first. Medium and hard model answers for those questions also include the saved study-guide explanation, and spoken coaching asks for a step-by-step Java walkthrough after the student answers.
+
 | Unit | Coverage | Questions |
 | --- | --- | ---: |
 | 1 | Java execution, program structure, types, scope, casts, operators, conditionals, loops, Scanner, digit-sum exercise | 12 |

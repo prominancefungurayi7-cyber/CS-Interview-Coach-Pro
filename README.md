@@ -14,7 +14,7 @@ Choose **Not Acquainted** if you do not know an answer. In Practice and Voice Co
 
 ## Java OOP exam preparation
 
-Choose **Java OOP (HCSE224)** in Practice or Question Bank. The bank has 86 questions across the six outline units, including program-writing and past-paper-style tasks. In Question Bank, filter by unit and question difficulty. After opening a model answer, choose **Easier**, **Medium**, or **Straightforward / hard** to change answer depth; each authored answer works without API access. The choice is saved in this browser and guides voice coaching and AI feedback. Question difficulty and answer style are independent.
+Choose **Java OOP (HCSE224)** in Practice, Voice Coach, or Mock Interview. The bank has 86 questions across the six outline units, including program-writing and past-paper-style tasks. Questions linked to the supplied September 2024, April 2025, November 2025, and June 2026 papers are sampled four times as often as other Java OOP questions. Difficulty filters still apply, and mock interviews do not repeat a question. In Question Bank, filter by unit and question difficulty. After opening a model answer, choose **Easier**, **Medium**, or **Straightforward / hard** to change answer depth. Medium and hard answers for paper-linked questions include a further explanation and worked examples offline; the AI voice coach also explains these topics step by step. The choice is saved in this browser and guides voice coaching and AI feedback. Question difficulty and answer style are independent.
 
 The [source and coverage map](docs/java-oop-coverage.md) records how each supplied course material informed the bank and where the saved Classroom page has limited content.
 

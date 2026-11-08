@@ -1758,6 +1758,7 @@ textarea { line-height: 1.65; }
 .badge-orange { background: var(--orange-light); color: var(--orange-dark); }
 .badge-grey { background: var(--grey-bg); color: var(--text-light); }
 .speech-status { color: var(--orange-dark); line-height: 1.5; }
+.speech-status:empty { display: none; }
 .speech-status .hosted-app-link { color: var(--blue); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .speech-status .hosted-app-link:hover { color: var(--blue-dark); }
 .coach-transcript { border-radius: 14px; padding: 18px; background: var(--surface-tint); }

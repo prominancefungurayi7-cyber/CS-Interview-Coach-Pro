@@ -25,6 +25,7 @@ test("serves static app and keeps the main API key private", async () => {
         assert.equal(page.status, 200);
         assert.match(await page.text(), /AI Voice Coach/);
         assert.equal((await fetch(origin + "/geminiLive.js")).status, 200);
+        assert.equal((await fetch(origin + "/questionSelection.js")).status, 200);
         assert.equal((await fetch(origin + "/audio-worklet.js")).status, 200);
         assert.equal((await fetch(origin + "/assets/visuals/dilationerosion.png")).status, 200);
         assert.equal((await fetch(origin + "/.env")).status, 404);
@@ -73,6 +74,11 @@ test("Gemini grading, explanation and voice token use bank answers", async () =>
             assert.equal(tokenRequest.uses, 1);
             assert.equal(tokenRequest.liveConnectConstraints, undefined);
             assert.ok(tokenRequest.expireTime);
+            const paper = oopQuestions.find(q => q.pastPaper && q.question.includes("Shape, Circle"));
+            const paperVoice = await post(origin, `/api/voice-token?${new URLSearchParams({ category: "oop", question: paper.question, level: "medium" })}`, {});
+            assert.equal(paperVoice.status, 200);
+            assert.match(paperVoice.body.instructions, /past-paper topic.*clear steps/);
+            assert.match(paperVoice.body.instructions, /Why it works:/);
             assert.equal((await post(origin, "/api/explain", { category: "oop", question: "invented" })).status, 400);
         });
     } finally {

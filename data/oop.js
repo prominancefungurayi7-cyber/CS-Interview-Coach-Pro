@@ -6,6 +6,7 @@ function q(unit, topic, difficulty, question, keywords, easy, medium, hard, pape
         unit, topic, difficulty, question, keywords,
         answers: { easy, medium, hard },
         modelAnswer: medium,
+        pastPaper: /\b(?:September|April|November|June) 20\d{2}\b/.test(paper),
         source: paper ? `HCSE224 Unit ${unit}; ${paper}` : `HCSE224 Unit ${unit}`
     };
 }
