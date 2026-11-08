@@ -133,10 +133,24 @@ const emptyStats = {
 };
 let stats;
 try {
-    stats = JSON.parse(localStorage.getItem("csInterviewStats")) || emptyStats;
-    if (!stats || typeof stats !== "object" || Array.isArray(stats)) stats = emptyStats;
+    const saved = JSON.parse(localStorage.getItem("csInterviewStats"));
+    const record = value => value && typeof value === "object" && !Array.isArray(value);
+    const previous = record(saved) ? saved : {};
+    const savedDifficulty = record(previous.difficultyStats) ? previous.difficultyStats : {};
+    stats = {
+        ...emptyStats,
+        ...previous,
+        categoryStats: record(previous.categoryStats) ? previous.categoryStats : {},
+        difficultyStats: Object.fromEntries(DIFFICULTY_ORDER.map(level => [level,
+            record(savedDifficulty[level]) ? { ...emptyStats.difficultyStats[level], ...savedDifficulty[level] }
+                : { ...emptyStats.difficultyStats[level] }])),
+        history: Array.isArray(previous.history) ? previous.history : [],
+        favorites: Array.isArray(previous.favorites) ? previous.favorites : [],
+        spacedRepetition: record(previous.spacedRepetition) ? previous.spacedRepetition : {}
+    };
 } catch {
-    stats = emptyStats;
+    stats = { ...emptyStats, difficultyStats: Object.fromEntries(DIFFICULTY_ORDER.map(level =>
+        [level, { ...emptyStats.difficultyStats[level] }])) };
 }
 
 let currentTheme = localStorage.getItem("theme") || "light";
@@ -677,7 +691,9 @@ function initCoach() {
             : "AI coach is offline. Restart the app to refresh its connection.");
     }).catch(() => {
         $("coachStartBtn").disabled = true;
-        coachStatus("Start this app with node server.js to use the AI coach.");
+        coachStatus(location.hostname.endsWith("github.io")
+            ? "GitHub Pages hosts the study interface. Run npm start locally and open http://127.0.0.1:3000 for AI voice and grading."
+            : "Start this app with node server.js to use the AI coach.");
     });
 }
 

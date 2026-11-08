@@ -6,8 +6,8 @@
     <title>CS Interview Coach Pro</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="/assets/vendor/jspdf.umd.min.js"></script>
-    <script src="/assets/vendor/chart.umd.min.js"></script>
+    <script src="assets/vendor/jspdf.umd.min.js"></script>
+    <script src="assets/vendor/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -600,13 +600,15 @@
     </div>
 </div>
 
-<script type="module" src="app.js?v=20261108-profile-startup-fix"></script>
+<script type="module" src="app.js?v=20261108-pages-profile-fix"></script>
 <script>
 window.addEventListener("load", () => {
     if (window.__coachAppReady) return;
     const message = location.protocol === "file:"
         ? "Open this app through its server: run npm start in the project folder, then visit http://127.0.0.1:3000."
-        : "The app did not finish loading. Restart the server with npm start, then refresh this page.";
+        : location.hostname.endsWith("github.io")
+            ? "The app did not finish loading. Refresh this page; if the problem continues, report it to the developer."
+            : "The app did not finish loading. Restart the server with npm start, then refresh this page.";
     const gate = document.getElementById("profileGate");
     const error = document.getElementById("profileError");
     gate.classList.remove("hidden");

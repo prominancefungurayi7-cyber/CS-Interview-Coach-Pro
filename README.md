@@ -31,7 +31,9 @@ Explanations use 14 downloaded Wikimedia Commons diagrams with author and licens
 
 The API key stays on the server. Do not open `index.html` directly for the AI features. Use headphones if the microphone picks up the coach's voice. A typed answer can still be graded if microphone access is unavailable. The live coach speaks with an AI-generated voice; it is not a HeyGen voice clone. PDF export and progress charts use locally bundled copies of jsPDF and Chart.js, with their licenses under `assets/vendor/`.
 
-`node --test` runs local profile and server checks. `node scripts/browser-smoke.mjs` and `node scripts/browser-interaction-smoke.mjs` run optional Chrome UI checks on Windows. `node scripts/live-ai-check.mjs` makes one real grading request to check the configured API project and may incur a small charge. Live voice and grading require a working API key, **available OpenAI Platform API credits**, model access and a network connection; ChatGPT Plus is separate from API billing.
+The GitHub Pages site can show the question bank, study material, progress and personalized PDF. GitHub Pages cannot run `server.js`, so live AI voice, grading and generated explanations require the local Node server or a separately hosted backend. The site preserves existing browser progress when loading newer app versions.
+
+`node --test` runs local profile and server checks. `node scripts/browser-smoke.mjs`, `node scripts/browser-interaction-smoke.mjs` and `node scripts/browser-pages-smoke.mjs` run optional Chrome UI checks on Windows. `node scripts/live-ai-check.mjs` makes one real grading request to check the configured API project and may incur a small charge. Live voice and grading require a working API key, **available OpenAI Platform API credits**, model access and a network connection; ChatGPT Plus is separate from API billing.
 
 ## How adaptation works
 

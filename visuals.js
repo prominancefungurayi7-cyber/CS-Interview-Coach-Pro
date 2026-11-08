@@ -1,7 +1,7 @@
 // Curated visual references are downloaded in assets/visuals with attribution in
 // manifest.json. Code-drawn diagrams and the sketch pad work without network access.
 const commons = (file, title, name, license, author = "Wikimedia Commons contributor") => ({
-    src: `/assets/visuals/${file}`, title,
+    src: `assets/visuals/${file}`, title,
     source: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(name)}`,
     license, author
 });
