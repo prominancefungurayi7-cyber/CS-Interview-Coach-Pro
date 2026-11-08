@@ -1,6 +1,10 @@
-// Past-paper Java OOP questions get more practice without excluding the syllabus.
+// Past-paper course questions get more practice without excluding the syllabus.
+export function isPaperQuestion(question) {
+    return (question.category === "oop" || question.category === "dip") && Boolean(question.pastPaper);
+}
+
 export function questionWeight(question) {
-    return question.category === "oop" && question.pastPaper ? 4 : 1;
+    return isPaperQuestion(question) ? 4 : 1;
 }
 
 export function pickWeightedQuestion(questions, random = Math.random) {

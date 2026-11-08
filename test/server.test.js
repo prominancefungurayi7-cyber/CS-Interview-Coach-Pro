@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createAppServer } from "../server.js";
 import { oopQuestions } from "../data/oop.js";
+import { dipQuestions } from "../data/dip.js";
 
 async function withServer(run) {
     const server = createAppServer();
@@ -79,6 +80,12 @@ test("Gemini grading, explanation and voice token use bank answers", async () =>
             assert.equal(paperVoice.status, 200);
             assert.match(paperVoice.body.instructions, /past-paper topic.*clear steps/);
             assert.match(paperVoice.body.instructions, /Why it works:/);
+            const dipPaper = dipQuestions.find(q => q.question.startsWith("Apply the horizontal Sobel kernel"));
+            const dipVoice = await post(origin, `/api/voice-token?${new URLSearchParams({ category: "dip", question: dipPaper.question, level: "medium" })}`, {});
+            assert.equal(dipVoice.status, 200);
+            assert.match(dipVoice.body.instructions, /digital image processing past-paper topic/);
+            assert.match(dipVoice.body.instructions, /image-processing calculation/);
+            assert.match(dipVoice.body.instructions, /Why it works:/);
             assert.equal((await post(origin, "/api/explain", { category: "oop", question: "invented" })).status, 400);
         });
     } finally {

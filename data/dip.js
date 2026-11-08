@@ -3,7 +3,8 @@
 // morphology slide decks. The source map is in docs/dip-coverage.md.
 function q(unit, topic, difficulty, question, keywords, easy, medium, hard, source = "Module outline; study book") {
     return { unit, topic, difficulty, question, keywords, answers: { easy, medium, hard },
-        modelAnswer: medium, source: `DIP Week ${unit}; ${source}` };
+        modelAnswer: medium, pastPaper: /\b(?:April|June|November) 20\d{2}\b/.test(source),
+        source: `DIP Week ${unit}; ${source}` };
 }
 
 export const dipQuestions = [

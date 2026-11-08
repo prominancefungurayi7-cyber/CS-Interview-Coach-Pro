@@ -2,6 +2,8 @@
 
 The 46 DIP questions in `data/dip.js` are newly written study prompts and answers. They use the supplied material as reference without reproducing examination text as an app asset. The module outline defines the ten-week structure. The study book supplies terminology, worked examples and application context. Scanned papers were visually reviewed; source labels in the bank identify the exam topics that informed each prompt.
 
+The 26 questions linked to the supplied HCSCI239 and HSVG papers receive four times the selection weight in Practice, Voice Coach and Mock Interview. Difficulty filters are applied first. Medium and hard model answers include the saved study-guide explanation; spoken coaching works through calculations or visual examples after the student answers.
+
 | Supplied material | Topics reflected in the bank |
 | --- | --- |
 | `DIGITAL IMAGE PROCESSING MODULE OUTLINE (1).pdf` | Weeks 1–10, from pixels and digitization through restoration, CNNs and applications |
