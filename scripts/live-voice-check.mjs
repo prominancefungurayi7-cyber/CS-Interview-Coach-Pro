@@ -1,11 +1,13 @@
 // Optional diagnostic: opens one real Gemini Live session and checks for a spoken reply.
 import { createAppServer } from "../server.js";
 
-const app = createAppServer();
-await new Promise(resolve => app.listen(0, "127.0.0.1", resolve));
+const hostedBaseUrl = process.env.COACH_BASE_URL?.replace(/\/$/, "");
+const app = hostedBaseUrl ? null : createAppServer();
+if (app) await new Promise(resolve => app.listen(0, "127.0.0.1", resolve));
 try {
     const params = new URLSearchParams({ category: "dsa", question: "What is an array?", pace: "medium", level: "medium" });
-    const response = await fetch(`http://127.0.0.1:${app.address().port}/api/voice-token?${params}`, { method: "POST" });
+    const baseUrl = hostedBaseUrl || `http://127.0.0.1:${app.address().port}`;
+    const response = await fetch(`${baseUrl}/api/voice-token?${params}`, { method: "POST" });
     const session = await response.json();
     if (!response.ok) throw new Error(session.error || `Voice token failed: ${response.status}`);
     const result = await new Promise((resolve, reject) => {
@@ -40,5 +42,5 @@ try {
     });
     console.log(JSON.stringify(result));
 } finally {
-    await new Promise(resolve => app.close(resolve));
+    if (app) await new Promise(resolve => app.close(resolve));
 }

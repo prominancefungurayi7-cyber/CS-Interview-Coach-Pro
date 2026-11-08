@@ -33,11 +33,11 @@ Explanations use 14 downloaded Wikimedia Commons diagrams with author and licens
 
 The main API key stays on the server; the browser receives a short-lived, single-use token for Gemini Live. The server uses `gemini-3.5-flash` for text by default and tries `gemini-3.5-flash-lite` if that model is temporarily unavailable or out of quota. You can change both in `.env`. Do not open `index.html` directly for the AI features. Use headphones if the microphone picks up the coach's voice. A typed answer can still be graded if microphone access is unavailable. The live coach speaks with an AI-generated voice; it is not a HeyGen voice clone. PDF export and progress charts use locally bundled copies of jsPDF and Chart.js, with their licenses under `assets/vendor/`.
 
-The GitHub Pages site can show the question bank, study material, progress and personalized PDF. GitHub Pages cannot run `server.js`, so live AI voice, grading and generated explanations require the local Node server or a separately hosted backend. The site preserves existing browser progress when loading newer app versions.
+The GitHub Pages site can show the question bank, study material, progress and personalized PDF. GitHub Pages cannot run `server.js`; open the [full app on Render](https://cs-interview-coach-pro.onrender.com/) for live AI voice, grading and generated explanations. The site preserves existing browser progress when loading newer app versions.
 
 ## Deploy the full app on Render
 
-The repository includes [Render Blueprint settings](render.yaml) and a [GitHub Actions test workflow](.github/workflows/test.yml). Render runs the Node server, so the public Render URL supports voice, grading, and generated explanations. New commits on `main` deploy automatically **after the GitHub tests pass**.
+The repository includes [Render Blueprint settings](render.yaml) and a [GitHub Actions test workflow](.github/workflows/test.yml). Render runs the Node server at [cs-interview-coach-pro.onrender.com](https://cs-interview-coach-pro.onrender.com/), with voice, grading, and generated explanations. New commits on `main` deploy automatically **after the GitHub tests pass**.
 
 1. Sign in to [Render](https://dashboard.render.com/) with GitHub and select **New → Blueprint**.
 2. Choose `prominancefungurayi7-cyber/CS-Interview-Coach-Pro` and allow Render access to that repository. Render reads `render.yaml` from `main`.
@@ -46,7 +46,7 @@ The repository includes [Render Blueprint settings](render.yaml) and a [GitHub A
 
 The free Render service can sleep after 15 minutes without requests, so the first visit later may take about a minute. It has usage limits, and Gemini has separate API quotas. Progress is saved in each browser's local storage for each site URL; progress on GitHub Pages does not automatically appear on the Render URL.
 
-`node --test` runs local profile, content coverage, voice protocol, and server checks. `node scripts/browser-smoke.mjs`, `node scripts/browser-interaction-smoke.mjs` and `node scripts/browser-pages-smoke.mjs` run optional Chrome UI checks on Windows. `node scripts/live-ai-check.mjs` makes one real grading request; `node scripts/live-voice-check.mjs` opens one short spoken Gemini Live session. Both use the configured project quota. Live voice and grading require a working Gemini API key, model access and a network connection. The [Gemini API free tier](https://ai.google.dev/gemini-api/docs/pricing) has limits and Google may use free-tier data to improve its products. Live connections may reset after about 10 minutes; start a new interview to continue.
+`node --test` runs local profile, content coverage, voice protocol, and server checks. `node scripts/browser-smoke.mjs`, `node scripts/browser-interaction-smoke.mjs` and `node scripts/browser-pages-smoke.mjs` run optional Chrome UI checks on Windows. `node scripts/live-ai-check.mjs` makes one real grading request; `node scripts/live-voice-check.mjs` opens one short spoken Gemini Live session. Set `COACH_BASE_URL=https://cs-interview-coach-pro.onrender.com` to check the hosted voice endpoint instead of the local server. Both AI diagnostics use the configured project quota. Live voice and grading require a working Gemini API key, model access and a network connection. The [Gemini API free tier](https://ai.google.dev/gemini-api/docs/pricing) has limits and Google may use free-tier data to improve its products. Live connections may reset after about 10 minutes; start a new interview to continue.
 
 ## How adaptation works
 

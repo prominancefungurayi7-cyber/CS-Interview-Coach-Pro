@@ -44,6 +44,8 @@ const CATEGORY_LABELS = {
     projects: "Projects"
 };
 
+const HOSTED_APP_URL = "https://cs-interview-coach-pro.onrender.com/";
+
 const questionBanks = {
     dsa: dsaQuestions,
     oop: oopQuestions,
@@ -714,9 +716,16 @@ function initCoach() {
             : "AI coach is offline. Restart the app to refresh its connection.");
     }).catch(() => {
         $("coachStartBtn").disabled = true;
-        coachStatus(location.hostname.endsWith("github.io")
-            ? "GitHub Pages hosts the study interface. Run npm start locally and open http://127.0.0.1:3000 for AI voice and grading."
-            : "Start this app with node server.js to use the AI coach.");
+        if (location.hostname.endsWith("github.io")) {
+            coachStatus("GitHub Pages shows the study interface. For voice and AI grading, ");
+            const link = document.createElement("a");
+            link.href = HOSTED_APP_URL;
+            link.className = "hosted-app-link";
+            link.textContent = "open the full app on Render ↗";
+            $("coachStatus").append(link);
+        } else {
+            coachStatus("Start this app with node server.js to use the AI coach.");
+        }
     });
 }
 
