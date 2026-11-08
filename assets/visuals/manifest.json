@@ -1,0 +1,100 @@
+[
+  {
+    "title": "File:DilationErosion.png",
+    "path": "assets/visuals/dilationerosion.png",
+    "source": "https://commons.wikimedia.org/wiki/File:DilationErosion.png",
+    "license": "Public domain",
+    "author": "Renato Keshet"
+  },
+  {
+    "title": "File:MorphologicalDilation.png",
+    "path": "assets/visuals/morphologicaldilation.png",
+    "source": "https://commons.wikimedia.org/wiki/File:MorphologicalDilation.png",
+    "license": "Public domain",
+    "author": "MartinPfeiffer"
+  },
+  {
+    "title": "File:Histogram equalization.png",
+    "path": "assets/visuals/histogram-equalization.png",
+    "source": "https://commons.wikimedia.org/wiki/File:Histogram_equalization.png",
+    "license": "CC0",
+    "author": "Phillip Capper"
+  },
+  {
+    "title": "File:Binary image dilation.png",
+    "path": "assets/visuals/binary-image-dilation.png",
+    "source": "https://commons.wikimedia.org/wiki/File:Binary_image_dilation.png",
+    "license": "CC BY-SA 3.0",
+    "author": "Highlandsgaucho"
+  },
+  {
+    "title": "File:Binary image erosion.png",
+    "path": "assets/visuals/binary-image-erosion.png",
+    "source": "https://commons.wikimedia.org/wiki/File:Binary_image_erosion.png",
+    "license": "CC BY-SA 3.0",
+    "author": "Highlandsgaucho"
+  },
+  {
+    "title": "File:Binary image with holes.png",
+    "path": "assets/visuals/binary-image-with-holes.png",
+    "source": "https://commons.wikimedia.org/wiki/File:Binary_image_with_holes.png",
+    "license": "CC BY-SA 3.0",
+    "author": "Highlandsgaucho"
+  },
+  {
+    "title": "File:Binary tree.svg",
+    "path": "assets/visuals/binary-tree.svg",
+    "source": "https://commons.wikimedia.org/wiki/File:Binary_tree.svg",
+    "license": "Public domain",
+    "author": "Derrick Coetzee"
+  },
+  {
+    "title": "File:Binary tree structure.svg",
+    "path": "assets/visuals/binary-tree-structure.svg",
+    "source": "https://commons.wikimedia.org/wiki/File:Binary_tree_structure.svg",
+    "license": "Public domain",
+    "author": "Cbuckley"
+  },
+  {
+    "title": "File:Binary search tree.svg",
+    "path": "assets/visuals/binary-search-tree.svg",
+    "source": "https://commons.wikimedia.org/wiki/File:Binary_search_tree.svg",
+    "license": "Public domain",
+    "author": "No machine-readable author provided. Dcoetzee assumed (based on copyright claims)."
+  },
+  {
+    "title": "File:OSI Model v1.svg",
+    "path": "assets/visuals/osi-model-v1.svg",
+    "source": "https://commons.wikimedia.org/wiki/File:OSI_Model_v1.svg",
+    "license": "Public domain",
+    "author": "Offnfopt"
+  },
+  {
+    "title": "File:Generalization (UML class diagram).svg",
+    "path": "assets/visuals/generalization-uml-class-diagram.svg",
+    "source": "https://commons.wikimedia.org/wiki/File:Generalization_(UML_class_diagram).svg",
+    "license": "Public domain",
+    "author": "Mischa004"
+  },
+  {
+    "title": "File:Adapter using inheritance UML class diagram.svg",
+    "path": "assets/visuals/adapter-using-inheritance-uml-class-diagram.svg",
+    "source": "https://commons.wikimedia.org/wiki/File:Adapter_using_inheritance_UML_class_diagram.svg",
+    "license": "Public domain",
+    "author": "Trashtoy"
+  },
+  {
+    "title": "File:Quicksort-example.gif",
+    "path": "assets/visuals/quicksort-example.gif",
+    "source": "https://commons.wikimedia.org/wiki/File:Quicksort-example.gif",
+    "license": "CC BY-SA 3.0",
+    "author": "Matt Chan (jacky's brother)"
+  },
+  {
+    "title": "File:Merge-sort-example-300px.gif",
+    "path": "assets/visuals/merge-sort-example-300px.gif",
+    "source": "https://commons.wikimedia.org/wiki/File:Merge-sort-example-300px.gif",
+    "license": "CC BY-SA 3.0",
+    "author": "Swfung8"
+  }
+]

@@ -6,11 +6,31 @@
     <title>CS Interview Coach Pro</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="/assets/vendor/jspdf.umd.min.js"></script>
+    <script src="/assets/vendor/chart.umd.min.js"></script>
 </head>
 <body>
 
-<div class="app">
+<div id="toastContainer" class="toast-container"></div>
+
+<div id="profileGate" class="profile-gate" role="dialog" aria-modal="true" aria-labelledby="profileGateTitle">
+    <form id="profileForm" class="profile-card">
+        <div class="profile-mark">CS</div>
+        <h1 id="profileGateTitle">Before we begin</h1>
+        <p>Enter your name and school to personalize your learning space and downloaded progress PDF. Your profile is saved in this browser and is not sent to the AI.</p>
+        <label for="studentName">Your name</label>
+        <input id="studentName" name="studentName" type="text" maxlength="80" autocomplete="name" required placeholder="Your full name">
+        <label for="studentSchool">School or university</label>
+        <input id="studentSchool" name="studentSchool" type="text" maxlength="120" autocomplete="organization" required placeholder="Your school">
+        <p id="profileError" class="profile-error hidden" role="alert"></p>
+        <div class="btn-group">
+            <button id="profileSaveBtn" class="primary-btn" type="submit">Start learning</button>
+            <button id="profileCancelBtn" class="outline-btn hidden" type="button">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="app" inert>
 
     <aside class="sidebar">
         <div class="logo">
@@ -21,25 +41,43 @@
             </div>
         </div>
 
-        <nav>
-            <button class="nav-btn active" data-page="dashboard">Dashboard</button>
-            <button class="nav-btn" data-page="practice">Practice</button>
-            <button class="nav-btn" data-page="mock">Mock Interview</button>
-            <button class="nav-btn" data-page="bank">Question Bank</button>
-            <button class="nav-btn" data-page="coding">Coding Interviews</button>
-            <button class="nav-btn" data-page="internship">Internship Prep</button>
-            <button class="nav-btn" data-page="graduate">Graduate Prep</button>
-            <button class="nav-btn" data-page="progress">Progress</button>
+        <nav role="navigation" aria-label="Main navigation">
+            <button class="nav-btn active" data-page="dashboard" aria-current="page" role="menuitem">Dashboard</button>
+            <button class="nav-btn" data-page="practice" role="menuitem">Practice</button>
+            <button class="nav-btn" data-page="aiCoach" role="menuitem">AI Voice Coach</button>
+            <button class="nav-btn" data-page="mock" role="menuitem">Mock Interview</button>
+            <button class="nav-btn" data-page="bank" role="menuitem">Question Bank</button>
+            <button class="nav-btn" data-page="dip" role="menuitem">Digital Image Processing</button>
+            <button class="nav-btn" data-page="favorites" role="menuitem">⭐ Favorites</button>
+            <button class="nav-btn" data-page="review" role="menuitem">📚 Due for Review</button>
+            <button class="nav-btn" data-page="coding" role="menuitem">Coding Interviews</button>
+            <button class="nav-btn" data-page="internship" role="menuitem">Internship Prep</button>
+            <button class="nav-btn" data-page="graduate" role="menuitem">Graduate Prep</button>
+            <button class="nav-btn" data-page="progress" role="menuitem">Progress</button>
         </nav>
+
+        <div class="student-sidebar-profile">
+            <strong id="sidebarStudentName">Student</strong>
+            <span id="sidebarSchoolName"></span>
+            <button id="editProfileBtn" class="outline-btn" type="button">Edit profile</button>
+        </div>
+
+        <div class="theme-toggle-container">
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+                <span class="theme-icon">🌙</span>
+                <span class="theme-text">Dark Mode</span>
+            </button>
+        </div>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content" role="main" aria-live="polite">
 
         <!-- DASHBOARD -->
-        <section id="dashboard" class="page active">
+        <section id="dashboard" class="page active" role="region" aria-labelledby="dashboard-title">
             <div class="page-header">
-                <h1>Dashboard</h1>
+                <h1 id="dashboard-title">Dashboard</h1>
                 <p>Track your interview readiness and weak areas</p>
+                <p id="dashboardWelcome" class="student-welcome"></p>
             </div>
 
             <div class="stats-grid">
@@ -95,10 +133,61 @@
             </div>
         </section>
 
-        <!-- PRACTICE -->
-        <section id="practice" class="page">
+        <!-- AI VOICE COACH -->
+        <section id="aiCoach" class="page" role="region" aria-labelledby="aiCoachTitle">
             <div class="page-header">
-                <h1>Practice Interview</h1>
+                <h1 id="aiCoachTitle">AI Voice Coach</h1>
+                <p>Have a live spoken interview, get specific feedback, and build a learning plan that adapts with practice.</p>
+            </div>
+            <div class="two-col coach-layout">
+                <div class="card controls-panel">
+                    <h2>Set up your interview</h2>
+                    <label for="coachCategory">Topic</label>
+                    <select id="coachCategory"></select>
+                    <label for="coachPace">Coaching pace</label>
+                    <select id="coachPace">
+                        <option value="auto">Adapt automatically</option>
+                        <option value="slow">Step by step</option>
+                        <option value="medium">Balanced</option>
+                        <option value="fast">Challenge me</option>
+                    </select>
+                    <label for="coachAnswerLevel">Java OOP answer style</label>
+                    <select id="coachAnswerLevel" class="oop-answer-level">
+                        <option value="easy">Easier</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Straightforward / hard</option>
+                    </select>
+                    <p class="coach-note">For Java OOP questions, this sets how simply the coach explains answers. Coaching pace still adapts to your progress.</p>
+                    <p class="coach-note" id="coachProfileText">Your pace will adapt after a few answers.</p>
+                    <p class="coach-note">The interviewer uses an AI-generated voice. Allow microphone access to speak. Headphones help prevent echo.</p>
+                    <div class="btn-group">
+                        <button id="coachStartBtn" class="primary-btn">Start voice interview</button>
+                        <button id="coachStopBtn" class="outline-btn" disabled>End voice call</button>
+                    </div>
+                    <p id="coachStatus" class="speech-status" role="status" aria-live="polite">Checking AI service…</p>
+                </div>
+                <div class="card answer-panel">
+                    <div class="card-header-row"><h2>Your interview</h2><span id="coachDifficulty" class="badge badge-blue">Medium</span></div>
+                    <h3 id="coachQuestion">Choose a topic and start the interview.</h3>
+                    <p class="coach-note">Speak naturally. The interviewer can answer your questions, give a hint, and respond to your answer. You can also type below.</p>
+                    <div id="coachTranscript" class="coach-transcript" role="log" aria-live="polite"></div>
+                    <label for="coachAnswer">Your answer or follow-up</label>
+                    <textarea id="coachAnswer" rows="4" placeholder="Type an answer, or speak into your microphone..."></textarea>
+                    <div class="btn-group">
+                        <button id="coachSendBtn" class="secondary-btn" disabled>Send typed message</button>
+                        <button id="coachGradeBtn" class="primary-btn" disabled>Grade my answer</button>
+                        <button id="coachNotAcquaintedBtn" class="outline-btn" type="button" disabled>Not Acquainted</button>
+                        <button id="coachNextBtn" class="outline-btn" disabled>Next question</button>
+                    </div>
+                    <div id="coachFeedback" class="feedback-panel hidden" aria-live="polite"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PRACTICE -->
+        <section id="practice" class="page" role="region" aria-labelledby="practice-title">
+            <div class="page-header">
+                <h1 id="practice-title">Practice Interview</h1>
                 <p>Answer questions with speech-to-text and difficulty filtering</p>
             </div>
 
@@ -107,10 +196,10 @@
                     <h2>Session Setup</h2>
 
                     <label for="categorySelect">Category</label>
-                    <select id="categorySelect"></select>
+                    <select id="categorySelect" aria-required="true"></select>
 
                     <label for="difficultySelect">Difficulty</label>
-                    <select id="difficultySelect">
+                    <select id="difficultySelect" aria-required="true">
                         <option value="all">All Levels</option>
                         <option value="easy">Easy</option>
                         <option value="medium">Medium</option>
@@ -128,31 +217,82 @@
                     </div>
                 </div>
 
-                <div class="card answer-panel">
-                    <h2 id="questionTitle">Select a category and start.</h2>
+                <div class="card answer-panel" role="region" aria-live="assertive">
+                    <h2 id="questionTitle" tabindex="-1">Select a category and start.</h2>
 
-                    <div class="answer-toolbar">
-                        <button id="speechBtn" class="icon-btn" title="Speech-to-Text">
-                            <span class="mic-icon">🎤</span> Dictate Answer
-                        </button>
-                        <span id="speechStatus" class="speech-status"></span>
+                    <div id="starGuide" class="star-guide hidden">
+                        <h4>💡 STAR Method Guide</h4>
+                        <p>Structure your behavioral answers using the STAR method:</p>
+                        <div class="star-steps">
+                            <div class="star-step">
+                                <span class="star-letter">S</span>
+                                <div>
+                                    <strong>Situation</strong>
+                                    <p>Describe the context and background</p>
+                                </div>
+                            </div>
+                            <div class="star-step">
+                                <span class="star-letter">T</span>
+                                <div>
+                                    <strong>Task</strong>
+                                    <p>Explain your specific responsibility</p>
+                                </div>
+                            </div>
+                            <div class="star-step">
+                                <span class="star-letter">A</span>
+                                <div>
+                                    <strong>Action</strong>
+                                    <p>Detail the steps you took</p>
+                                </div>
+                            </div>
+                            <div class="star-step">
+                                <span class="star-letter">R</span>
+                                <div>
+                                    <strong>Result</strong>
+                                    <p>Share the outcome and impact</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <textarea id="answerInput" placeholder="Type or dictate your answer here..."></textarea>
+                    <div class="answer-toolbar">
+                        <button id="speechBtn" class="icon-btn" title="Speech-to-Text" aria-label="Start speech-to-text dictation">
+                            <span class="mic-icon">🎤</span> Dictate Answer
+                        </button>
+                        <button id="toggleStarBtn" class="icon-btn" title="Toggle STAR Guide" aria-label="Toggle STAR method guide">
+                            <span>⭐</span> STAR Guide
+                        </button>
+                        <span id="speechStatus" class="speech-status" role="status" aria-live="polite"></span>
+                    </div>
+
+                    <textarea id="answerInput" placeholder="Type or dictate your answer here..." aria-label="Your answer" rows="8"></textarea>
 
                     <div class="btn-group">
                         <button id="submitAnswerBtn" class="primary-btn">Submit Answer</button>
+                        <button id="practiceNotAcquaintedBtn" class="outline-btn" type="button">Not Acquainted</button>
                         <button id="showModelBtn" class="outline-btn">Show Model Answer</button>
                     </div>
 
-                    <div id="feedbackPanel" class="feedback-panel hidden">
+                    <div id="feedbackPanel" class="feedback-panel hidden" role="alert" aria-live="polite">
                         <div class="score-display">
                             <span id="scoreValue">0</span>%
                         </div>
                         <p id="feedbackText"></p>
                         <div id="modelAnswerBox" class="model-answer hidden">
                             <h4>Model Answer</h4>
-                            <p id="modelAnswerText"></p>
+                            <div id="practiceAnswerVariants" class="oop-answer-variants hidden">
+                                <label for="practiceAnswerLevel">Answer style</label>
+                                <select id="practiceAnswerLevel" class="oop-answer-level" aria-label="Model answer style">
+                                    <option value="easy">Easier</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="hard">Straightforward / hard</option>
+                                </select>
+                            </div>
+                            <p id="modelAnswerText" class="oop-answer-content"></p>
+                            <div class="explain-control">
+                                <button id="practiceExplainBtn" type="button" class="outline-btn explain-answer-btn" aria-expanded="false">Explain this answer</button>
+                                <div id="practiceExplanation" class="explanation-panel hidden" aria-live="polite"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -227,6 +367,7 @@
                         <textarea id="mockAnswerInput" placeholder="Your answer..."></textarea>
                         <div class="btn-group">
                             <button id="mockSkipBtn" class="outline-btn">Skip</button>
+                            <button id="mockNotAcquaintedBtn" class="outline-btn" type="button">Not Acquainted</button>
                             <button id="mockNextBtn" class="primary-btn">Next Question</button>
                         </div>
                     </div>
@@ -249,9 +390,20 @@
                         <h2 id="mockTimeUsed">0:00</h2>
                     </div>
                 </div>
+                <p id="mockReviewStatus" class="mock-review-status" role="status" aria-live="polite"></p>
+                <button id="mockRetryReviewBtn" class="outline-btn hidden" type="button">Retry AI review</button>
                 <div id="mockResultsDetail"></div>
                 <button id="mockRestartBtn" class="primary-btn">Start New Mock</button>
             </div>
+        </section>
+
+        <!-- QUESTION BANK -->
+        <section id="dip" class="page">
+            <div class="page-header"><h1>Digital Image Processing</h1>
+                <p>HCSCI239 exam and interview preparation across all ten module weeks.</p></div>
+            <div class="card"><p>Study the model answer at your preferred depth, then open its explanation and draw on the visual where useful. Use Practice or Mock Interview to test your understanding.</p>
+                <button id="dipPracticeBtn" class="primary-btn" type="button">Practice DIP questions</button></div>
+            <div id="dipContainer"></div>
         </section>
 
         <!-- QUESTION BANK -->
@@ -271,6 +423,38 @@
                         <option value="easy">Easy</option>
                         <option value="medium">Medium</option>
                         <option value="hard">Hard</option>
+                    </select>
+                    <select id="bankUnitFilter" class="hidden" aria-label="Module unit or week">
+                        <option value="all">All Java OOP units</option>
+                        <option value="1">Unit 1: Java fundamentals</option>
+                        <option value="2">Unit 2: OOP concepts</option>
+                        <option value="3">Unit 3: Classes and libraries</option>
+                        <option value="4">Unit 4: Modern Java features</option>
+                        <option value="5">Unit 5: Exceptions, I/O and GUI</option>
+                        <option value="6">Unit 6: JDBC and databases</option>
+                    </select>
+                    <select id="bankCompanyFilter">
+                        <option value="all">All Companies</option>
+                        <option value="google">Google</option>
+                        <option value="amazon">Amazon</option>
+                        <option value="meta">Meta (Facebook)</option>
+                        <option value="microsoft">Microsoft</option>
+                        <option value="apple">Apple</option>
+                        <option value="netflix">Netflix</option>
+                        <option value="startup">Startup</option>
+                    </select>
+                </div>
+                <div class="filter-row">
+                    <select id="bankRoleFilter">
+                        <option value="all">All Roles</option>
+                        <option value="frontend">Frontend Developer</option>
+                        <option value="backend">Backend Developer</option>
+                        <option value="fullstack">Full Stack Developer</option>
+                        <option value="devops">DevOps Engineer</option>
+                        <option value="mobile">Mobile Developer</option>
+                        <option value="data">Data Engineer</option>
+                        <option value="ml">Machine Learning Engineer</option>
+                        <option value="security">Security Engineer</option>
                     </select>
                     <input type="search" id="bankSearch" placeholder="Search questions...">
                 </div>
@@ -306,11 +490,30 @@
             <div id="graduateContainer" class="question-bank-grid"></div>
         </section>
 
+        <!-- FAVORITES -->
+        <section id="favorites" class="page">
+            <div class="page-header">
+                <h1>⭐ Favorite Questions</h1>
+                <p>Questions you've bookmarked for later review</p>
+            </div>
+            <div id="favoritesContainer" class="question-bank-grid"></div>
+        </section>
+
+        <!-- DUE FOR REVIEW -->
+        <section id="review" class="page">
+            <div class="page-header">
+                <h1>📚 Due for Review</h1>
+                <p>Questions scheduled for spaced repetition review</p>
+            </div>
+            <div id="reviewContainer" class="question-bank-grid"></div>
+        </section>
+
         <!-- PROGRESS -->
         <section id="progress" class="page">
             <div class="page-header">
                 <h1>Progress Analytics</h1>
                 <p>Detailed history and performance trends</p>
+                <p id="progressStudent" class="student-welcome"></p>
             </div>
 
             <div class="stats-grid">
@@ -335,12 +538,17 @@
             <div class="two-col">
                 <div class="card">
                     <h2>Category Performance</h2>
-                    <div id="progressCategoryChart" class="category-chart"></div>
+                    <canvas id="categoryChartCanvas" height="250"></canvas>
                 </div>
                 <div class="card">
                     <h2>Difficulty Breakdown</h2>
-                    <div id="difficultyChart" class="difficulty-chart"></div>
+                    <canvas id="difficultyChartCanvas" height="250"></canvas>
                 </div>
+            </div>
+
+            <div class="card">
+                <h2>Performance Over Time</h2>
+                <canvas id="performanceChartCanvas" height="200"></canvas>
             </div>
 
             <div class="card">
@@ -349,6 +557,18 @@
                     <button id="exportPdfBtn2" class="outline-btn">Export to PDF</button>
                 </div>
                 <div id="historyContainer" class="history-list"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header-row">
+                    <h2>Data Management</h2>
+                </div>
+                <div class="action-buttons">
+                    <button id="exportDataBtn" class="outline-btn">Export Progress Data</button>
+                    <button id="importDataBtn" class="outline-btn">Import Progress Data</button>
+                    <button id="clearDataBtn" class="outline-btn danger">Clear All Data</button>
+                </div>
+                <input type="file" id="importFileInput" accept=".json" style="display: none;">
             </div>
         </section>
 
@@ -373,12 +593,28 @@
             <textarea id="fsAnswerInput" placeholder="Your answer..."></textarea>
             <div class="btn-group">
                 <button id="fsSkipBtn" class="outline-btn">Skip</button>
+                <button id="fsNotAcquaintedBtn" class="outline-btn" type="button">Not Acquainted</button>
                 <button id="fsNextBtn" class="primary-btn">Next Question</button>
             </div>
         </div>
     </div>
 </div>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=20261108-profile-startup-fix"></script>
+<script>
+window.addEventListener("load", () => {
+    if (window.__coachAppReady) return;
+    const message = location.protocol === "file:"
+        ? "Open this app through its server: run npm start in the project folder, then visit http://127.0.0.1:3000."
+        : "The app did not finish loading. Restart the server with npm start, then refresh this page.";
+    const gate = document.getElementById("profileGate");
+    const error = document.getElementById("profileError");
+    gate.classList.remove("hidden");
+    document.querySelector(".app").inert = true;
+    error.textContent = message;
+    error.classList.remove("hidden");
+    document.getElementById("profileSaveBtn").disabled = true;
+});
+</script>
 </body>
 </html>
