@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CS Interview Coach Pro</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20261108-studio">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="assets/vendor/jspdf.umd.min.js"></script>
     <script src="assets/vendor/chart.umd.min.js"></script>
@@ -14,8 +14,17 @@
 <div id="toastContainer" class="toast-container"></div>
 
 <div id="profileGate" class="profile-gate" role="dialog" aria-modal="true" aria-labelledby="profileGateTitle">
+    <div class="profile-shell">
+    <div class="profile-story" aria-hidden="true">
+        <span class="profile-story-label">YOUR LEARNING STUDIO</span>
+        <div class="profile-story-art"><span>01</span><i></i><b>CS</b></div>
+        <h2>Better answers begin with better practice.</h2>
+        <p>Build confidence one question, one explanation, and one breakthrough at a time.</p>
+        <div class="profile-story-footer"><span></span> MADE FOR THE CURIOUS</div>
+    </div>
     <form id="profileForm" class="profile-card">
-        <div class="profile-mark">CS</div>
+        <div class="profile-mark">CS<span class="profile-mark-dot"></span></div>
+        <span class="profile-eyebrow">LET'S GET TO KNOW YOU</span>
         <h1 id="profileGateTitle">Before we begin</h1>
         <p>Enter your name and school to personalize your learning space and downloaded progress PDF. Your profile is saved in this browser and is not sent to the AI.</p>
         <label for="studentName">Your name</label>
@@ -28,6 +37,7 @@
             <button id="profileCancelBtn" class="outline-btn hidden" type="button">Cancel</button>
         </div>
     </form>
+    </div>
 </div>
 
 <div class="app" inert>
@@ -36,20 +46,24 @@
         <div class="logo">
             <div class="logo-icon">CS</div>
             <div>
-                <h2>Interview Coach</h2>
-                <span>Computer Science Pro</span>
+                <span class="brand-eyebrow">THE STUDY STUDIO</span>
+                <h2>Interview Coach<span class="brand-period">.</span></h2>
+                <span class="brand-subtitle">Computer Science Pro</span>
             </div>
         </div>
 
         <nav role="navigation" aria-label="Main navigation">
+            <span class="nav-label">YOUR SPACE</span>
             <button class="nav-btn active" data-page="dashboard" aria-current="page" role="menuitem">Dashboard</button>
             <button class="nav-btn" data-page="practice" role="menuitem">Practice</button>
             <button class="nav-btn" data-page="aiCoach" role="menuitem">AI Voice Coach</button>
             <button class="nav-btn" data-page="mock" role="menuitem">Mock Interview</button>
+            <span class="nav-label">EXPLORE &amp; REVIEW</span>
             <button class="nav-btn" data-page="bank" role="menuitem">Question Bank</button>
             <button class="nav-btn" data-page="dip" role="menuitem">Digital Image Processing</button>
             <button class="nav-btn" data-page="favorites" role="menuitem">⭐ Favorites</button>
             <button class="nav-btn" data-page="review" role="menuitem">📚 Due for Review</button>
+            <span class="nav-label">SPECIALIST TRACKS</span>
             <button class="nav-btn" data-page="coding" role="menuitem">Coding Interviews</button>
             <button class="nav-btn" data-page="internship" role="menuitem">Internship Prep</button>
             <button class="nav-btn" data-page="graduate" role="menuitem">Graduate Prep</button>
@@ -57,6 +71,7 @@
         </nav>
 
         <div class="student-sidebar-profile">
+            <span class="sidebar-mini-label">YOUR PROFILE</span>
             <strong id="sidebarStudentName">Student</strong>
             <span id="sidebarSchoolName"></span>
             <button id="editProfileBtn" class="outline-btn" type="button">Edit profile</button>
@@ -72,14 +87,27 @@
 
     <main class="main-content" role="main" aria-live="polite">
 
+        <div class="workspace-bar">
+            <div class="workspace-breadcrumb"><span class="workspace-symbol">✦</span><span>THE STUDIO</span><span class="breadcrumb-divider">/</span><strong id="workspaceSectionName">Dashboard</strong></div>
+            <div class="workspace-actions"><span class="workspace-live"><i></i> Ready when you are</span><button id="workspaceStartBtn" class="workspace-start-btn" type="button" aria-label="Start practicing">Start practicing <span aria-hidden="true">↗</span></button></div>
+        </div>
+
         <!-- DASHBOARD -->
         <section id="dashboard" class="page active" role="region" aria-labelledby="dashboard-title">
-            <div class="page-header">
-                <h1 id="dashboard-title">Dashboard</h1>
-                <p>Track your interview readiness and weak areas</p>
-                <p id="dashboardWelcome" class="student-welcome"></p>
+            <div class="dashboard-hero">
+                <div class="hero-content">
+                    <span class="hero-kicker"><span></span> YOUR LEARNING SPACE</span>
+                    <h1 id="dashboard-title">Make your next answer<br><em>your best one.</em></h1>
+                    <p id="dashboardWelcome" class="student-welcome"></p>
+                    <div class="hero-actions">
+                        <button id="heroPracticeBtn" class="hero-primary" type="button">Start a practice session <span aria-hidden="true">↗</span></button>
+                        <button id="heroBankBtn" class="hero-secondary" type="button">Explore questions <span aria-hidden="true">→</span></button>
+                    </div>
+                </div>
+                <div class="hero-visual" aria-hidden="true"><div class="hero-orbit hero-orbit-one"></div><div class="hero-orbit hero-orbit-two"></div><div class="hero-core"><span>CS</span><small>BUILD YOUR EDGE</small></div><div class="hero-chip hero-chip-top">LEARN <span>↗</span></div><div class="hero-chip hero-chip-bottom">PRACTICE <span>✦</span></div></div>
             </div>
 
+            <div class="section-heading"><div><span class="section-kicker">YOUR MOMENTUM</span><h2>Progress at a glance</h2></div><span class="section-aside">Every answer moves you forward.</span></div>
             <div class="stats-grid">
                 <div class="card stat-card">
                     <h3>Questions Practiced</h3>
@@ -100,6 +128,7 @@
                 </div>
             </div>
 
+            <div class="section-heading section-heading-secondary"><div><span class="section-kicker">STUDY INTELLIGENCE</span><h2>Know where to focus</h2></div></div>
             <div class="two-col">
                 <div class="card">
                     <h2>Interview Readiness</h2>
@@ -123,7 +152,7 @@
 
             <div class="card">
                 <div class="card-header-row">
-                    <h2>Quick Actions</h2>
+                    <h2>Where to next?</h2>
                 </div>
                 <div class="action-buttons">
                     <button id="quickRandomBtn" class="primary-btn">Random Interview (5 Q)</button>
@@ -538,17 +567,17 @@
             <div class="two-col">
                 <div class="card">
                     <h2>Category Performance</h2>
-                    <canvas id="categoryChartCanvas" height="250"></canvas>
+                    <div class="chart-slot"><canvas id="categoryChartCanvas" height="250"></canvas><p id="categoryChartEmpty" class="chart-empty hidden">Your strongest subjects will appear here after your first graded answer.</p></div>
                 </div>
                 <div class="card">
                     <h2>Difficulty Breakdown</h2>
-                    <canvas id="difficultyChartCanvas" height="250"></canvas>
+                    <div class="chart-slot"><canvas id="difficultyChartCanvas" height="250"></canvas><p id="difficultyChartEmpty" class="chart-empty hidden">Practice a question to see how you are progressing across levels.</p></div>
                 </div>
             </div>
 
             <div class="card">
                 <h2>Performance Over Time</h2>
-                <canvas id="performanceChartCanvas" height="200"></canvas>
+                <div class="chart-slot chart-slot-wide"><canvas id="performanceChartCanvas" height="200"></canvas><p id="performanceChartEmpty" class="chart-empty hidden">Your learning journey starts with one answer. Your scores will build a trend here.</p></div>
             </div>
 
             <div class="card">
@@ -600,7 +629,7 @@
     </div>
 </div>
 
-<script type="module" src="app.js?v=20261108-pages-profile-fix"></script>
+<script type="module" src="app.js?v=20261108-studio"></script>
 <script>
 window.addEventListener("load", () => {
     if (window.__coachAppReady) return;

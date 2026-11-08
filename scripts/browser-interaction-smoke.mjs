@@ -33,6 +33,17 @@ window.addEventListener('load', async () => {
     outcome.profileSaved = document.querySelector('#profileGate').classList.contains('hidden') &&
       document.querySelector('#dashboardWelcome').textContent.includes('Alex Test') &&
       document.querySelector('#progressStudent').textContent.includes('Example University');
+    document.querySelector('#heroBankBtn').click();
+    outcome.heroBankNavigation = document.querySelector('#bank').classList.contains('active') &&
+      document.querySelector('#workspaceSectionName').textContent === 'Question Bank';
+    document.querySelector('#workspaceStartBtn').click();
+    outcome.workspacePractice = document.querySelector('#practice').classList.contains('active') &&
+      document.querySelector('#questionTitle').textContent !== 'Select a category and start.';
+    document.querySelector('[data-page="dashboard"]').click();
+    document.querySelector('#heroPracticeBtn').click();
+    outcome.heroPractice = document.querySelector('#practice').classList.contains('active') &&
+      document.querySelector('#workspaceSectionName').textContent === 'Practice';
+    document.querySelector('[data-page="dashboard"]').click();
     outcome.localPdfLibrary = !!window.jspdf?.jsPDF;
     if (window.jspdf?.jsPDF) {
       const nativePdf = window.jspdf.jsPDF;

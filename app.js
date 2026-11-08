@@ -314,6 +314,8 @@ function navigateTo(pageId) {
         btn.classList.toggle("active", btn.dataset.page === pageId);
         btn.setAttribute("aria-current", btn.dataset.page === pageId ? "page" : "false");
     });
+    const activeNav = [...navButtons].find(btn => btn.dataset.page === pageId);
+    if (activeNav) $("workspaceSectionName").textContent = activeNav.textContent.trim().replace(/^[^\w]+\s*/, "");
     pages.forEach(page => page.classList.toggle("active", page.id === pageId));
     
     // Focus management for accessibility
@@ -1789,7 +1791,7 @@ function initCharts() {
     }
 
     const difficultyCtx = $('difficultyChartCanvas');
-    if (difficultyCtx) {
+    if (difficultyCtx && stats.practiced > 0) {
         if (difficultyChart) difficultyChart.destroy();
 
         const difficultyData = DIFFICULTY_ORDER.map(diff => {
@@ -1865,6 +1867,15 @@ function initCharts() {
 }
 
 function renderProgress() {
+    const chartStates = [
+        ["categoryChartCanvas", "categoryChartEmpty", Object.keys(stats.categoryStats).length > 0],
+        ["difficultyChartCanvas", "difficultyChartEmpty", stats.practiced > 0],
+        ["performanceChartCanvas", "performanceChartEmpty", stats.history.length > 0]
+    ];
+    for (const [canvasId, emptyId, hasData] of chartStates) {
+        $(canvasId).classList.toggle("hidden", !hasData);
+        $(emptyId).classList.toggle("hidden", hasData);
+    }
     initCharts();
     renderDifficultyChart();
 
@@ -2140,6 +2151,9 @@ $("quickRandomBtn").addEventListener("click", () => {
     $("difficultySelect").value = "all";
     startRandomPractice();
 });
+$("workspaceStartBtn").addEventListener("click", () => { navigateTo("practice"); startRandomPractice(); });
+$("heroPracticeBtn").addEventListener("click", () => { navigateTo("practice"); startRandomPractice(); });
+$("heroBankBtn").addEventListener("click", () => navigateTo("bank"));
 $("quickMockBtn").addEventListener("click", () => navigateTo("mock"));
 $("exportPdfBtn").addEventListener("click", exportProgressToPdf);
 $("exportPdfBtn2").addEventListener("click", exportProgressToPdf);
