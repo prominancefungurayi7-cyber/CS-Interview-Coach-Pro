@@ -1,10 +1,10 @@
 # CS Interview Coach Pro
 
-The app includes a static question bank and an AI Voice Coach. The coach uses the existing CS questions as reference material, a live OpenAI Realtime voice conversation, and a separate AI evaluation of each answer. Recent scores and hint use adjust the coaching pace and the next question's difficulty. The learner can override the pace at any time. Progress is stored in this browser's local storage.
+The app includes a static question bank and an AI Voice Coach. The coach uses the existing CS questions as reference material, a live Gemini voice conversation, and a separate AI evaluation of each answer. Recent scores and hint use adjust the coaching pace and the next question's difficulty. The learner can override the pace at any time. Progress is stored in this browser's local storage.
 
 On first launch, enter your name and school before using the app. You can edit them from the sidebar. The dashboard and Progress page show them, and downloaded progress PDFs include both details and use your name in the filename. The profile stays in browser storage and is not sent to the AI. **Clear All Data** removes the profile too.
 
-After opening any model answer, select **Explain this answer** for a plain-language explanation and simple, medium, and complex examples. AI explanations use the bank answer as reference and require API credits. If the API is unavailable, the app shows saved answer depths and a visual sketch workspace where available, with a clear offline notice.
+After opening any model answer, select **Explain this answer** for a plain-language explanation and simple, medium, and complex examples. AI explanations use the bank answer as reference and require Gemini API access. If the API is unavailable, the app shows saved answer depths and a visual sketch workspace where available, with a clear offline notice.
 
 Practice and mock interviews use AI assessment of factual meaning and reasoning, accepting correct alternative wording. The old literal keyword score has been removed. If the AI cannot grade, the app keeps your answer and shows model material without inventing a percentage. The last completed mock is saved in this browser, so its full answers remain available after reopening the page and its AI review can be retried. When AI access works, results include the mark, an AI review and learning plan, and a suggested model-answer depth for each question. In answer boxes, **Enter** submits or advances; **Shift+Enter** inserts a new line.
 
@@ -25,15 +25,15 @@ Explanations use 14 downloaded Wikimedia Commons diagrams with author and licens
 ## Run locally
 
 1. Install Node.js 22 or newer.
-2. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` to an API key with access to the configured text and Realtime models.
+2. Copy `.env.example` to `.env` and set `GEMINI_API_KEY` to a key from [Google AI Studio](https://aistudio.google.com/apikey). Free-tier quotas and model availability vary by project and region.
 3. Run `node server.js` (or `npm start` where the npm launcher is available).
 4. Open `http://127.0.0.1:3000`, then choose **AI Voice Coach** and allow microphone access.
 
-The API key stays on the server. Do not open `index.html` directly for the AI features. Use headphones if the microphone picks up the coach's voice. A typed answer can still be graded if microphone access is unavailable. The live coach speaks with an AI-generated voice; it is not a HeyGen voice clone. PDF export and progress charts use locally bundled copies of jsPDF and Chart.js, with their licenses under `assets/vendor/`.
+The main API key stays on the server; the browser receives a short-lived, single-use token for Gemini Live. Do not open `index.html` directly for the AI features. Use headphones if the microphone picks up the coach's voice. A typed answer can still be graded if microphone access is unavailable. The live coach speaks with an AI-generated voice; it is not a HeyGen voice clone. PDF export and progress charts use locally bundled copies of jsPDF and Chart.js, with their licenses under `assets/vendor/`.
 
 The GitHub Pages site can show the question bank, study material, progress and personalized PDF. GitHub Pages cannot run `server.js`, so live AI voice, grading and generated explanations require the local Node server or a separately hosted backend. The site preserves existing browser progress when loading newer app versions.
 
-`node --test` runs local profile and server checks. `node scripts/browser-smoke.mjs`, `node scripts/browser-interaction-smoke.mjs` and `node scripts/browser-pages-smoke.mjs` run optional Chrome UI checks on Windows. `node scripts/live-ai-check.mjs` makes one real grading request to check the configured API project and may incur a small charge. Live voice and grading require a working API key, **available OpenAI Platform API credits**, model access and a network connection; ChatGPT Plus is separate from API billing.
+`node --test` runs local profile and server checks. `node scripts/browser-smoke.mjs`, `node scripts/browser-interaction-smoke.mjs` and `node scripts/browser-pages-smoke.mjs` run optional Chrome UI checks on Windows. `node scripts/live-ai-check.mjs` makes one real Gemini grading request and uses the configured project quota. Live voice and grading require a working Gemini API key, model access and a network connection. The [Gemini API free tier](https://ai.google.dev/gemini-api/docs/pricing) has limits and Google may use free-tier data to improve its products. Live connections may reset after about 10 minutes; start a new interview to continue.
 
 ## How adaptation works
 

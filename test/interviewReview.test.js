@@ -16,17 +16,17 @@ function post(port, path, payload) {
 }
 
 test("interview review accepts alternative wording, returns study depth, and rejects invented questions", async () => {
-    const key = process.env.OPENAI_API_KEY;
+    const key = process.env.GEMINI_API_KEY;
     const oldFetch = globalThis.fetch;
-    process.env.OPENAI_API_KEY = "test-only-key";
+    process.env.GEMINI_API_KEY = "test-only-key";
     const outbound = [];
     globalThis.fetch = async (_url, options) => {
         outbound.push(JSON.parse(options.body));
-        return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify({
+        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({
             overallReview: "Good core idea; add a code example.", learningPlan: "Draw an array and explain an index.",
             results: [{ index: 0, score: 88, summary: "Correctly described indexed contiguous storage.",
                 strengths: ["Correct relationship between index and location"], improvements: ["Add a concrete index example"],
-                answerLevel: "medium", studyAnswer: "An array stores same-type elements in adjacent slots; a[2] reads the third item." }] }) }] }] }), { status: 200 });
+                answerLevel: "medium", studyAnswer: "An array stores same-type elements in adjacent slots; a[2] reads the third item." }] }) }] } }] }), { status: 200 });
     };
     const server = createAppServer();
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
@@ -40,19 +40,18 @@ test("interview review accepts alternative wording, returns study depth, and rej
         assert.equal(result.status, 200);
         assert.equal(result.body.results[0].answerLevel, "medium");
         assert.equal(result.body.results[0].score, 88);
-        assert.equal(outbound[0].store, false);
-        assert.equal(JSON.parse(outbound[0].input).answers[0].studentAnswer, answer);
-        assert.match(outbound[0].instructions, /alternative wording/);
-        assert.equal(outbound[0].text.format.schema.properties.results.items.required.at(-1), "studyAnswer");
+        assert.equal(JSON.parse(outbound[0].contents[0].parts[0].text).answers[0].studentAnswer, answer);
+        assert.match(outbound[0].systemInstruction.parts[0].text, /alternative wording/);
+        assert.equal(outbound[0].generationConfig.responseJsonSchema.properties.results.items.required.at(-1), "studyAnswer");
         const unfamiliar = await post(port, "/api/review-interview", { answers: [{ category: "dsa", question: "What is an array?",
             answer: "", notAcquainted: true }] });
         assert.equal(unfamiliar.status, 200);
         assert.equal(unfamiliar.body.results[0].score, 0);
         assert.equal(unfamiliar.body.results[0].answerLevel, "easy");
-        assert.equal(JSON.parse(outbound[1].input).answers[0].notAcquainted, true);
+        assert.equal(JSON.parse(outbound[1].contents[0].parts[0].text).answers[0].notAcquainted, true);
     } finally {
         await new Promise(resolve => server.close(resolve));
         globalThis.fetch = oldFetch;
-        if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key;
+        if (key === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = key;
     }
 });

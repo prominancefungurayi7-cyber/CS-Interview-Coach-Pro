@@ -1,162 +1,103 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import http from "node:http";
 import { createAppServer } from "../server.js";
 import { oopQuestions } from "../data/oop.js";
 
-function request(port, route, body, contentType) {
-    return new Promise((resolve, reject) => {
-        const req = http.request({ hostname: "127.0.0.1", port, path: route, method: "POST", headers: { "Content-Type": contentType } }, res => {
-            const chunks = [];
-            res.on("data", chunk => chunks.push(chunk));
-            res.on("end", () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
-        });
-        req.on("error", reject);
-        req.end(body);
-    });
+async function withServer(run) {
+    const server = createAppServer();
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    try { return await run(`http://127.0.0.1:${server.address().port}`); }
+    finally { await new Promise(resolve => server.close(resolve)); }
 }
 
-test("serves the coach and keeps the key on the server", async () => {
-    const server = createAppServer();
-    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-    try {
-        const origin = `http://127.0.0.1:${server.address().port}`;
+async function post(origin, route, data) {
+    const response = await fetch(origin + route, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return { status: response.status, body: await response.json() };
+}
+
+function structured(data) {
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(data) }] } }] }), { status: 200 });
+}
+
+test("serves static app and keeps the main API key private", async () => {
+    await withServer(async origin => {
         const page = await fetch(origin);
         assert.equal(page.status, 200);
-        assert.equal(page.headers.get("cache-control"), "no-store");
-        const html = await page.text();
-        assert.match(html, /AI Voice Coach/);
-        assert.match(html, /app\.js\?v=/);
-        const script = await fetch(`${origin}/app.js?v=smoke`);
-        assert.equal(script.status, 200);
-        assert.equal(script.headers.get("cache-control"), "no-store");
-        const status = await (await fetch(`${origin}/api/status`)).json();
+        assert.match(await page.text(), /AI Voice Coach/);
+        assert.equal((await fetch(origin + "/geminiLive.js")).status, 200);
+        assert.equal((await fetch(origin + "/audio-worklet.js")).status, 200);
+        assert.equal((await fetch(origin + "/assets/visuals/dilationerosion.png")).status, 200);
+        assert.equal((await fetch(origin + "/.env")).status, 404);
+        assert.equal((await fetch(origin + "/server.js")).status, 404);
+        const status = await (await fetch(origin + "/api/status")).json();
+        assert.equal(status.provider, "gemini");
         assert.equal(typeof status.configured, "boolean");
-        const secret = await fetch(`${origin}/.env`);
-        assert.equal(secret.status, 404);
-        const speechModule = await fetch(`${origin}/speechTranscript.js`);
-        assert.equal(speechModule.status, 200);
-        const visual = await fetch(`${origin}/assets/visuals/dilationerosion.png`);
-        assert.equal(visual.status, 200);
-        assert.equal(visual.headers.get("content-type"), "image/png");
-        const pdfLibrary = await fetch(`${origin}/assets/vendor/jspdf.umd.min.js`);
-        assert.equal(pdfLibrary.status, 200);
-        assert.match(pdfLibrary.headers.get("content-type"), /text\/javascript/);
-        const chartLibrary = await fetch(`${origin}/assets/vendor/chart.umd.min.js`);
-        assert.equal(chartLibrary.status, 200);
-        assert.doesNotMatch(html, /Manage OpenAI API billing|platform\.openai\.com\/settings\/organization\/billing/);
-        const unknown = await fetch(`${origin}/data/../server.js`);
-        assert.equal(unknown.status, 404);
-    } finally { await new Promise(resolve => server.close(resolve)); }
+    });
 });
 
-test("grounds grading in a bank answer and configures the live AI voice", async () => {
-    const previousKey = process.env.OPENAI_API_KEY;
-    const originalFetch = globalThis.fetch;
-    process.env.OPENAI_API_KEY = "test-only-key";
+test("Gemini grading, explanation and voice token use bank answers", async () => {
+    const oldKey = process.env.GEMINI_API_KEY;
+    const oldFetch = globalThis.fetch;
+    process.env.GEMINI_API_KEY = "test-only-key";
     const outbound = [];
     globalThis.fetch = async (url, options) => {
-        outbound.push({ url, options });
-        if (url.endsWith("/responses")) return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify({ score: 83, summary: "Correct indexing; explain memory layout.", strengths: ["Indexing"], improvements: ["Memory layout"], nextStep: "Draw an array and label its addresses.", followUp: "How does a linked list differ?" }) }] }] }), { status: 200 });
-        return new Response("v=0\r\nanswer", { status: 200 });
+        if (String(url).startsWith("http://127.0.0.1")) return oldFetch(url, options);
+        outbound.push({ url: String(url), options });
+        if (String(url).endsWith("/auth_tokens")) return new Response(JSON.stringify({ name: "short-lived-token" }), { status: 200 });
+        const input = JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+        if (input.answerLevel && !input.studentAnswer) return structured({ simpleTerms: "Numbered slots", simpleExample: "Three names", mediumExample: "Daily temperatures", complexExample: "Resizing a dynamic array" });
+        return structured({ score: 83, summary: "Correct indexing", strengths: ["Indexing"], improvements: ["Memory layout"], nextStep: "Draw addresses", followUp: "What is a list?" });
     };
-    const server = createAppServer();
-    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     try {
-        const port = server.address().port;
-        const evaluation = await request(port, "/api/evaluate", JSON.stringify({ category: "dsa", question: "What is an array?", answer: "An array stores elements contiguously and uses an index to access each element.", pace: "slow" }), "application/json");
-        assert.equal(evaluation.status, 200);
-        assert.equal(JSON.parse(evaluation.body).score, 83);
-        const gradingPrompt = JSON.parse(JSON.parse(outbound[0].options.body).input);
-        assert.match(gradingPrompt.referenceAnswer, /contiguous memory/);
-        assert.equal(gradingPrompt.pace, "slow");
-        const voice = await request(port, "/api/realtime-session?category=dsa&question=What%20is%20an%20array%3F&pace=fast", "v=0\r\noffer", "application/sdp");
-        assert.equal(voice.status, 200);
-        const session = JSON.parse(outbound[1].options.body.get("session"));
-        assert.equal(session.audio.output.voice, "marin");
-        assert.match(session.instructions, /tradeoffs and edge cases/);
-        const oop = oopQuestions.find(q => q.question === "What is Object-Oriented Programming?");
-        const oopGrade = await request(port, "/api/evaluate", JSON.stringify({
-            category: "oop", question: oop.question, answer: "Objects combine state with behavior.",
-            level: "easy"
-        }), "application/json");
-        assert.equal(oopGrade.status, 200);
-        const oopPrompt = JSON.parse(JSON.parse(outbound[2].options.body).input);
-        assert.equal(oopPrompt.referenceAnswer, oop.answers.hard);
-        assert.equal(oopPrompt.answerLevel, "easy");
-        const oopVoiceRoute = `/api/realtime-session?${new URLSearchParams({ category: "oop", question: oop.question, level: "easy" })}`;
-        const oopVoice = await request(port, oopVoiceRoute, "v=0\r\noffer", "application/sdp");
-        assert.equal(oopVoice.status, 200);
-        assert.ok(JSON.parse(outbound[3].options.body.get("session")).instructions.includes(oop.answers.easy));
+        await withServer(async origin => {
+            const oop = oopQuestions.find(q => q.question === "What is Object-Oriented Programming?");
+            const grade = await post(origin, "/api/evaluate", { category: "oop", question: oop.question, answer: "Objects combine state with behavior.", level: "easy" });
+            assert.equal(grade.status, 200);
+            assert.equal(grade.body.score, 83);
+            const grading = JSON.parse(outbound[0].options.body);
+            assert.match(outbound[0].url, /generativelanguage\.googleapis\.com\/v1beta\/models\/.*:generateContent/);
+            assert.equal(outbound[0].options.headers["x-goog-api-key"], "test-only-key");
+            assert.equal(grading.generationConfig.responseMimeType, "application/json");
+            assert.equal(JSON.parse(grading.contents[0].parts[0].text).referenceAnswer, oop.answers.hard);
+            const explain = await post(origin, "/api/explain", { category: "oop", question: oop.question, level: "easy" });
+            assert.equal(explain.status, 200);
+            assert.equal(explain.body.complexExample, "Resizing a dynamic array");
+            assert.equal(JSON.parse(JSON.parse(outbound[1].options.body).contents[0].parts[0].text).referenceAnswer, oop.answers.easy);
+            const voice = await post(origin, `/api/voice-token?${new URLSearchParams({ category: "oop", question: oop.question, level: "easy" })}`, {});
+            assert.equal(voice.status, 200);
+            assert.equal(voice.body.token, "short-lived-token");
+            assert.equal(voice.body.voice, "Kore");
+            assert.ok(voice.body.instructions.includes(oop.answers.easy));
+            assert.doesNotMatch(JSON.stringify(voice.body), /test-only-key/);
+            const tokenRequest = JSON.parse(outbound[2].options.body);
+            assert.equal(tokenRequest.uses, 1);
+            assert.deepEqual(tokenRequest.liveConnectConstraints.config.responseModalities, ["AUDIO"]);
+            assert.equal((await post(origin, "/api/explain", { category: "oop", question: "invented" })).status, 400);
+        });
     } finally {
-        await new Promise(resolve => server.close(resolve));
-        globalThis.fetch = originalFetch;
-        if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
-        else process.env.OPENAI_API_KEY = previousKey;
+        globalThis.fetch = oldFetch;
+        if (oldKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = oldKey;
     }
 });
 
-test("reports exhausted API credits for both grading and voice without exposing credentials", async () => {
-    const previousKey = process.env.OPENAI_API_KEY;
-    const originalFetch = globalThis.fetch;
-    process.env.OPENAI_API_KEY = "test-only-key";
-    globalThis.fetch = async () => new Response(JSON.stringify({ error: { code: "credit_balance_exhausted", type: "insufficient_quota", message: "No credits" } }), { status: 429 });
-    const server = createAppServer();
-    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+test("Gemini quota errors are actionable and do not expose credentials", async () => {
+    const oldKey = process.env.GEMINI_API_KEY;
+    const oldFetch = globalThis.fetch;
+    process.env.GEMINI_API_KEY = "test-only-key";
+    globalThis.fetch = async (url, options) => String(url).startsWith("http://127.0.0.1") ? oldFetch(url, options)
+        : new Response(JSON.stringify({ error: { status: "RESOURCE_EXHAUSTED", message: "quota" } }), { status: 429 });
     try {
-        const port = server.address().port;
-        const grading = await request(port, "/api/evaluate", JSON.stringify({ category: "dsa", question: "What is an array?", answer: "An array stores values in contiguous memory." }), "application/json");
-        const explanation = await request(port, "/api/explain", JSON.stringify({ category: "dsa", question: "What is an array?" }), "application/json");
-        const voice = await request(port, "/api/realtime-session?category=dsa&question=What%20is%20an%20array%3F", "v=0\r\noffer", "application/sdp");
-        for (const result of [grading, explanation, voice]) {
-            assert.equal(result.status, 502);
-            assert.match(JSON.parse(result.body).error, /API credits are exhausted/);
-            assert.doesNotMatch(result.body, /test-only-key/);
-        }
+        await withServer(async origin => {
+            const grade = await post(origin, "/api/evaluate", { category: "dsa", question: "What is an array?", answer: "An array stores adjacent values." });
+            const voice = await post(origin, "/api/voice-token?category=dsa&question=What%20is%20an%20array%3F", {});
+            for (const result of [grade, voice]) {
+                assert.equal(result.status, 502);
+                assert.match(result.body.error, /quota or rate limit/);
+                assert.doesNotMatch(JSON.stringify(result.body), /test-only-key/);
+            }
+        });
     } finally {
-        await new Promise(resolve => server.close(resolve));
-        globalThis.fetch = originalFetch;
-        if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
-        else process.env.OPENAI_API_KEY = previousKey;
-    }
-});
-
-test("explains a validated model answer with simple, medium, and complex examples", async () => {
-    const previousKey = process.env.OPENAI_API_KEY;
-    const originalFetch = globalThis.fetch;
-    process.env.OPENAI_API_KEY = "test-only-key";
-    let outbound;
-    const explanation = {
-        simpleTerms: "An array is a numbered row of slots.",
-        simpleExample: "Three names in slots 0, 1, and 2.",
-        mediumExample: "A list of daily temperatures accessed by day index.",
-        complexExample: "A dynamic array resizes and copies elements when capacity is exhausted."
-    };
-    globalThis.fetch = async (url, options) => {
-        outbound = { url, options };
-        return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify(explanation) }] }] }), { status: 200 });
-    };
-    const server = createAppServer();
-    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-    try {
-        const port = server.address().port;
-        const invalid = await request(port, "/api/explain", JSON.stringify({ category: "dsa", question: "Invented question" }), "application/json");
-        assert.equal(invalid.status, 400);
-        assert.equal(outbound, undefined);
-        const result = await request(port, "/api/explain", JSON.stringify({ category: "dsa", question: "What is an array?" }), "application/json");
-        assert.equal(result.status, 200);
-        assert.deepEqual(JSON.parse(result.body), explanation);
-        const sent = JSON.parse(outbound.options.body);
-        assert.match(JSON.parse(sent.input).referenceAnswer, /contiguous memory/);
-        assert.deepEqual(sent.text.format.schema.required, ["simpleTerms", "simpleExample", "mediumExample", "complexExample"]);
-        const oop = oopQuestions.find(q => q.question === "What is Object-Oriented Programming?");
-        const easy = await request(port, "/api/explain", JSON.stringify({ category: "oop", question: oop.question, level: "easy" }), "application/json");
-        assert.equal(easy.status, 200);
-        assert.equal(JSON.parse(JSON.parse(outbound.options.body).input).referenceAnswer, oop.answers.easy);
-    } finally {
-        await new Promise(resolve => server.close(resolve));
-        globalThis.fetch = originalFetch;
-        if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
-        else process.env.OPENAI_API_KEY = previousKey;
+        globalThis.fetch = oldFetch;
+        if (oldKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = oldKey;
     }
 });

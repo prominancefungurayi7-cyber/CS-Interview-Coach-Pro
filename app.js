@@ -19,6 +19,7 @@ import { systemDesignQuestions } from "./data/systemDesign.js";
 import { projectQuestions } from "./data/projects.js";
 import { createCoachProfile, updateCoachProfile, effectivePace, nextDifficulty, weakestCategory } from "./coachProfile.js";
 import { composeSpeechTranscript } from "./speechTranscript.js";
+import { createGeminiLiveCall, mergeSpeech } from "./geminiLive.js";
 import { normalizeStudentProfile, progressFileName } from "./studentProfile.js";
 
 const CATEGORY_LABELS = {
@@ -470,51 +471,29 @@ function chooseCoachQuestion() {
 
 function stopCoachCall() {
     if (!coachCall) return;
-    coachCall.channel?.close();
-    coachCall.pc?.close();
-    coachCall.stream?.getTracks().forEach(track => track.stop());
-    coachCall.audio?.remove();
+    coachCall.close();
     coachCall = null;
     $("coachStopBtn").disabled = true;
     $("coachSendBtn").disabled = true;
     coachStatus("Voice call ended. Your progress is saved in this browser.");
 }
 
-function coachEvent(event) {
-    if (!coachCall?.channel || coachCall.channel.readyState !== "open") return;
-    coachCall.channel.send(JSON.stringify(event));
-}
-
-function handleCoachEvent(event) {
-    if (event.type === "conversation.item.input_audio_transcription.completed" && event.transcript?.trim()) {
-        const words = event.transcript.trim();
-        coachLine("You", words);
-        $("coachAnswer").value = words;
-        if (/\b(hint|help me|explain|repeat|slower)\b/i.test(words)) coachUsedHint = true;
-        $("coachGradeBtn").disabled = words.length < 10;
+let coachLastSpeaker = "";
+let coachCurrentSpeech = "";
+function coachSpeech(speaker, words) {
+    if (!words?.trim()) return;
+    if (speaker !== coachLastSpeaker) {
+        coachLastSpeaker = speaker;
+        coachCurrentSpeech = "";
+        coachLine(speaker, "");
     }
-    if (event.type === "response.output_audio_transcript.done" && event.transcript?.trim()) {
-        coachLine("Coach", event.transcript.trim());
+    coachCurrentSpeech = mergeSpeech(coachCurrentSpeech, words);
+    $("coachTranscript").lastElementChild.lastChild.textContent = coachCurrentSpeech;
+    if (speaker === "You") {
+        $("coachAnswer").value = coachCurrentSpeech;
+        if (/\b(hint|help me|explain|repeat|slower)\b/i.test(coachCurrentSpeech)) coachUsedHint = true;
+        $("coachGradeBtn").disabled = coachCurrentSpeech.length < 10;
     }
-    if (event.type === "error") coachStatus(event.error?.message || "Voice connection error.");
-}
-
-async function waitForCoachIce(pc) {
-    if (pc.iceGatheringState === "complete") return;
-    await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-            pc.removeEventListener("icegatheringstatechange", onState);
-            reject(new Error("The voice connection timed out while preparing the microphone. Try again or check your network."));
-        }, 10000);
-        function onState() {
-            if (pc.iceGatheringState !== "complete") return;
-            clearTimeout(timer);
-            pc.removeEventListener("icegatheringstatechange", onState);
-            resolve();
-        }
-        pc.addEventListener("icegatheringstatechange", onState);
-        onState();
-    });
 }
 
 async function startCoach() {
@@ -530,57 +509,39 @@ async function startCoach() {
     $("coachDifficulty").textContent = coachQuestion.difficulty;
     $("coachAnswer").value = "";
     $("coachTranscript").replaceChildren();
+    coachLastSpeaker = "";
+    coachCurrentSpeech = "";
     $("coachFeedback").classList.add("hidden");
     $("coachGradeBtn").disabled = false;
     $("coachNotAcquaintedBtn").disabled = false;
     $("coachNextBtn").disabled = false;
     coachBusy = true;
     $("coachStartBtn").disabled = true;
-    coachStatus("Connecting to your interviewer…");
-    let pc, stream, audio;
+    coachStatus("Connecting to Gemini Live…");
     try {
-        if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) throw new Error("This browser cannot open a voice call. Use a current browser on localhost or HTTPS.");
-        pc = new RTCPeerConnection();
-        pc.onconnectionstatechange = () => {
-            if (pc.connectionState === "failed" && coachCall?.pc === pc) {
-                stopCoachCall();
-                coachStatus("Voice connection failed. Check your network and try again.");
-            }
-        };
-        audio = document.createElement("audio");
-        audio.autoplay = true;
-        document.body.appendChild(audio);
-        pc.ontrack = event => { audio.srcObject = event.streams[0]; audio.play().catch(() => coachStatus("Click the page to allow audio playback.")); };
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        pc.addTrack(stream.getAudioTracks()[0], stream);
-        const channel = pc.createDataChannel("oai-events");
-        coachCall = { pc, stream, audio, channel };
-        channel.onmessage = message => { try { handleCoachEvent(JSON.parse(message.data)); } catch { /* Ignore malformed events. */ } };
-        channel.onerror = () => coachStatus("Voice data channel error. End the call and try again.");
-        channel.onopen = () => {
-            coachStatus("Live voice call. Speak naturally; the coach will reply aloud.");
-            $("coachStopBtn").disabled = false;
-            $("coachSendBtn").disabled = false;
-            coachEvent({ type: "response.create" });
-        };
-        channel.onclose = () => { if (coachCall?.channel === channel) stopCoachCall(); };
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        coachStatus("Preparing secure voice connection…");
-        await waitForCoachIce(pc);
-        const sdp = pc.localDescription?.sdp;
-        if (!sdp) throw new Error("The browser could not prepare the voice connection.");
         const params = new URLSearchParams({ category: coachQuestion.category, question: coachQuestion.question, pace: effectivePace(coachProfile), level: selectedAnswerLevel });
-        const response = await fetch(`/api/realtime-session?${params}`, { method: "POST", headers: { "Content-Type": "application/sdp" }, body: sdp });
+        const response = await fetch(`/api/voice-token?${params}`, { method: "POST" });
         if (!response.ok) {
             const detail = await response.json().catch(() => ({}));
             throw new Error(detail.error || "Could not connect to the voice service.");
         }
-        await pc.setRemoteDescription({ type: "answer", sdp: await response.text() });
+        coachCall = await createGeminiLiveCall(await response.json(), {
+            onReady: () => {
+                coachStatus("Live voice call. Speak naturally; Gemini will reply aloud.");
+                $("coachStopBtn").disabled = false;
+                $("coachSendBtn").disabled = false;
+            },
+            onInput: words => coachSpeech("You", words),
+            onOutput: words => coachSpeech("Coach", words),
+            onError: message => coachStatus(message),
+            onClose: () => {
+                coachCall = null;
+                $("coachStopBtn").disabled = true;
+                $("coachSendBtn").disabled = true;
+                coachStatus("Voice call ended. Your progress is saved in this browser.");
+            }
+        });
     } catch (error) {
-        stream?.getTracks().forEach(track => track.stop());
-        pc?.close();
-        audio?.remove();
         coachCall = null;
         coachStatus(error.name === "NotAllowedError"
             ? "Microphone access was denied. Allow microphone access in your browser, then try again."
@@ -593,11 +554,12 @@ async function startCoach() {
 
 function sendCoachText() {
     const text = $("coachAnswer").value.trim();
-    if (!text || !coachCall?.channel || coachCall.channel.readyState !== "open") return;
+    if (!text || !coachCall?.isOpen) return;
     coachLine("You", text);
+    coachLastSpeaker = "You";
+    coachCurrentSpeech = text;
     if (/\b(hint|help me|explain|repeat|slower)\b/i.test(text)) coachUsedHint = true;
-    coachEvent({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } });
-    coachEvent({ type: "response.create" });
+    coachCall.sendText(text);
 }
 
 async function gradeCoachAnswer() {
@@ -634,10 +596,7 @@ async function gradeCoachAnswer() {
         updateSpacedRepetition(coachQuestion, feedback.score);
         showCoachProfile();
         coachStatus("Feedback ready. You can discuss it aloud or try the next question.");
-        if (coachCall?.channel?.readyState === "open") {
-            coachEvent({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: `Please speak a brief summary of this assessment and one next step: ${feedback.summary} ${feedback.nextStep}` }] } });
-            coachEvent({ type: "response.create" });
-        }
+        if (coachCall?.isOpen) coachCall.sendText(`Please speak a brief summary of this assessment and one next step: ${feedback.summary} ${feedback.nextStep}`);
     } catch (error) {
         coachStatus(error.message);
     } finally {
@@ -662,11 +621,7 @@ function markCoachNotAcquainted() {
     localStorage.setItem("csCoachProfile", JSON.stringify(coachProfile));
     showCoachProfile();
     coachStatus("Not Acquainted recorded. Study the answer, or ask the coach to explain it aloud.");
-    if (coachCall?.channel?.readyState === "open") {
-        coachEvent({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text",
-            text: "I am not acquainted with this topic yet. Please explain the answer aloud in simple terms with one concrete example and a short practice step." }] } });
-        coachEvent({ type: "response.create" });
-    }
+    if (coachCall?.isOpen) coachCall.sendText("I am not acquainted with this topic yet. Please explain the answer aloud in simple terms with one concrete example and a short practice step.");
 }
 
 function initCoach() {
@@ -1105,7 +1060,7 @@ function renderExplanation(panel, explanation, question) {
     if (explanation.offline) {
         const note = document.createElement("p");
         note.className = "explanation-note";
-        note.textContent = "Saved study explanation. Restart the app and check OpenAI API access for a tailored AI explanation.";
+        note.textContent = "Saved study explanation. Restart the app and check Gemini API access for a tailored AI explanation.";
         panel.appendChild(note);
     }
     if (question) mountVisual(panel, visualForQuestion(question));
@@ -1554,7 +1509,7 @@ function restoreCompletedMock() {
         $("mockRetryReviewBtn").classList.add("hidden");
     } else {
         $("mockOverallScore").textContent = "—";
-        $("mockReviewStatus").textContent = "Your answers are saved. AI review is pending; retry when OpenAI API credits are available.";
+        $("mockReviewStatus").textContent = "Your answers are saved. AI review is pending; retry when Gemini API access is available.";
         $("mockRetryReviewBtn").classList.remove("hidden");
     }
     renderMockResults();

@@ -1,5 +1,5 @@
 // Optional diagnostic: node scripts/live-ai-check.mjs
-// Sends one real grading request and may incur a small API charge.
+// Sends one real grading request and uses the configured Gemini API quota.
 import { createAppServer } from "../server.js";
 
 const app = createAppServer();
@@ -8,7 +8,7 @@ try {
     const origin = `http://127.0.0.1:${app.address().port}`;
     const status = await (await fetch(`${origin}/api/status`)).json();
     if (!status.configured) {
-        console.log("OpenAI API key is not configured in the server process.");
+        console.log("Gemini API key is not configured in the server process.");
     } else {
         const response = await fetch(`${origin}/api/evaluate`, { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ category: "dsa", question: "What is an array?",
