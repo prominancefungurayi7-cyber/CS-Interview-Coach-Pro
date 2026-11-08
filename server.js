@@ -300,14 +300,15 @@ export function createAppServer() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const port = Number(process.env.PORT) || 3000;
+    const host = process.env.HOST || "127.0.0.1";
     const server = createAppServer();
     server.on("error", error => {
         if (error.code === "EADDRINUSE") {
-            console.error(`Port ${port} is already in use. Interview Coach may already be running at http://127.0.0.1:${port}. Stop that server before starting another.`);
+            console.error(`Port ${port} is already in use. Interview Coach may already be running there. Stop that server before starting another.`);
         } else {
             console.error("Could not start Interview Coach:", error.message);
         }
         process.exitCode = 1;
     });
-    server.listen(port, "127.0.0.1", () => console.log(`Interview Coach running at http://127.0.0.1:${port}`));
+    server.listen(port, host, () => console.log(`Interview Coach listening on ${host}:${port}`));
 }

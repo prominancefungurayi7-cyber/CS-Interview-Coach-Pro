@@ -35,6 +35,17 @@ The main API key stays on the server; the browser receives a short-lived, single
 
 The GitHub Pages site can show the question bank, study material, progress and personalized PDF. GitHub Pages cannot run `server.js`, so live AI voice, grading and generated explanations require the local Node server or a separately hosted backend. The site preserves existing browser progress when loading newer app versions.
 
+## Deploy the full app on Render
+
+The repository includes [Render Blueprint settings](render.yaml) and a [GitHub Actions test workflow](.github/workflows/test.yml). Render runs the Node server, so the public Render URL supports voice, grading, and generated explanations. New commits on `main` deploy automatically **after the GitHub tests pass**.
+
+1. Sign in to [Render](https://dashboard.render.com/) with GitHub and select **New → Blueprint**.
+2. Choose `prominancefungurayi7-cyber/CS-Interview-Coach-Pro` and allow Render access to that repository. Render reads `render.yaml` from `main`.
+3. When Render asks for `GEMINI_API_KEY`, enter your Google AI Studio key in Render's secret field. Do not add it to GitHub or `render.yaml`.
+4. Create the Blueprint, wait for its first successful deploy, and open the `https://...onrender.com` URL Render provides. Check `/api/status` on that URL to confirm `"configured":true`.
+
+The free Render service can sleep after 15 minutes without requests, so the first visit later may take about a minute. It has usage limits, and Gemini has separate API quotas. Progress is saved in each browser's local storage for each site URL; progress on GitHub Pages does not automatically appear on the Render URL.
+
 `node --test` runs local profile, content coverage, voice protocol, and server checks. `node scripts/browser-smoke.mjs`, `node scripts/browser-interaction-smoke.mjs` and `node scripts/browser-pages-smoke.mjs` run optional Chrome UI checks on Windows. `node scripts/live-ai-check.mjs` makes one real grading request; `node scripts/live-voice-check.mjs` opens one short spoken Gemini Live session. Both use the configured project quota. Live voice and grading require a working Gemini API key, model access and a network connection. The [Gemini API free tier](https://ai.google.dev/gemini-api/docs/pricing) has limits and Google may use free-tier data to improve its products. Live connections may reset after about 10 minutes; start a new interview to continue.
 
 ## How adaptation works
